@@ -73,7 +73,9 @@ for root, dirs, files in os.walk(starting_directory):
                 counter = 97  # ASCII code for letter "a"
                 while os.path.isfile(new_path):
                     counter += counter
-                    new_path = new_path + chr(counter)
+
+                    new_filename = (datetime.datetime.strftime(date, "%Y%m%d") + chr(counter) + ".json")
+                    new_path = folder_path + "/" + new_filename
 
                     if not os.path.isfile(new_path):
                         shutil.copyfile(starting_directory + file_name, new_path)
