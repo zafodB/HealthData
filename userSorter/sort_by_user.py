@@ -13,51 +13,76 @@ from dateutil.parser import *
 * and it's name changed to the date of the original post.
 '''
 
-starting_directory = "/GW/D5data-1/BioYago/healthboards/json/healthboards/1/"
-# starting_directory = "D:/Downloads/json/healthboards/" + "1/"
-# output_directory = "D:/Downloads/json/healthboards/" + "1-sorted/"
-output_directory = "/GW/D5data-1/BioYago/healthboards/json/healthboards/sorted/"
+# starting_directory = "/GW/D5data-1/BioYago/healthboards/json/healthboards/1/"
+starting_directory = "D:/Downloads/json/healthboards/" + "1/"
+output_directory = "D:/Downloads/json/healthboards/" + "1-sorted/"
+# output_directory = "/scratch/GW/pool0/fadamik/healthboards/sorted/"
+
+if not os.path.isdir(output_directory):
+    os.mkdir(output_directory)
 
 file_list = []
 users_set = set()
 user_status = set()
 
+# walk through the files in the starting directory
 for root, dirs, files in os.walk(starting_directory):
-    try:
-        for file_name in files:
+    for file_name in files:
+        try:
+            # Open file
             file_list.append(file_name)
             file = open(starting_directory + file_name, "r", encoding="utf8")
             contents = file.read()
             file_as_json = json.loads(contents)
 
-            username = file_as_json["createdBy"]["name"].replace('?', 'q').replace('*', 'x')
+            # Extract the OP (original poster) and filter for unusable characters
+            # (characters which cannot be in filepath)
+            username = file_as_json["createdBy"]["name"].replace('?', 'q')\
+                .replace('*', 'x')\
+                .replace(':', 'c')\
+                .replace('/', 'f',)\
+                .replace('\\', 'b')
             user_status.add(file_as_json["createdBy"]["status"])
 
+            # Extract posting date
             date_as_text = file_as_json["pubDate"]
             date = parse(date_as_text)
 
-            if not os.path.isdir(output_directory):
-                os.mkdir(output_directory)
-
+            # Create directory with the first letter of the username (directory 'A', 'B', 'C' ...)
             first_letter = username[0].upper()
-
             if not os.path.isdir(output_directory + first_letter):
                 os.mkdir(output_directory + first_letter)
 
             folder_path = output_directory + first_letter + "/" + username
 
+            # Add user to set of users
             if username not in users_set:
                 if not os.path.isdir(folder_path):
                     os.mkdir(folder_path)
                 users_set.add(username)
 
+            # Determine the filename
             new_filename = (datetime.datetime.strftime(date, "%Y%m%d") + ".json")
+            new_path = folder_path + "/" + new_filename
 
-            if not os.path.isfile(folder_path + "/" + first_letter + "/" + new_filename):
-                shutil.copyfile(starting_directory + file_name, folder_path + "/" + new_filename)
+            # Copy the file to the new location under the new filename
+            if not os.path.isfile(new_path):
+                shutil.copyfile(starting_directory + file_name, new_path)
+            # If the user made two posts on the same date, differentiate them by adding a single letter to the filename
+            else:
+                counter = 97  # ASCII code for letter "a"
+                while os.path.isfile(new_path):
+                    counter += counter
+                    new_path = new_path + chr(counter)
 
-    except Exception as e:
-        print(e)
+                    if not os.path.isfile(new_path):
+                        shutil.copyfile(starting_directory + file_name, new_path)
+                        break
+
+        except Exception as e:
+            # e.
+            print("Error processing file: " + file_name + ": " + str(e))
+            # print(e)
 
 # print(users_set)
 print("Unique users: " + str(len(users_set)))
