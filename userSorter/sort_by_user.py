@@ -13,10 +13,10 @@ from dateutil.parser import *
 * and it's name changed to the date of the original post.
 '''
 
-# starting_directory = "/GW/D5data-1/BioYago/healthboards/json/healthboards/1/"
+# starting_directory = "/GW/D5data-1/BioYago/ehealthforum/json/impact/2015-12-09/ehealthforum/1"
 starting_directory = "D:/Downloads/json/healthboards/" + "1/"
 output_directory = "D:/Downloads/json/healthboards/" + "1-sorted/"
-# output_directory = "/scratch/GW/pool0/fadamik/healthboards/sorted/"
+# output_directory = "/scratch/GW/pool0/fadamik/ehealthforum/sorted/"
 
 if not os.path.isdir(output_directory):
     os.mkdir(output_directory)
