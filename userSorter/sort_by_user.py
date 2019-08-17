@@ -13,7 +13,7 @@ from dateutil.parser import *
 * and it's name changed to the date of the original post.
 '''
 
-# starting_directory = "/GW/D5data-1/BioYago/ehealthforum/json/impact/2015-12-09/ehealthforum/1"
+# starting_directory = "/GW/D5data-1/BioYago/healthboards/json/healthboards/5/"
 starting_directory = "D:/Downloads/json/healthboards/" + "1/"
 output_directory = "D:/Downloads/json/healthboards/" + "1-sorted/"
 # output_directory = "/scratch/GW/pool0/fadamik/ehealthforum/sorted/"
@@ -80,6 +80,9 @@ for root, dirs, files in os.walk(starting_directory):
                     if not os.path.isfile(new_path):
                         shutil.copyfile(starting_directory + file_name, new_path)
                         break
+
+            if len(file_list) % 10000 == 0:
+                print("Processed files: " + str(len(file_list)))
 
         except Exception as e:
             # e.

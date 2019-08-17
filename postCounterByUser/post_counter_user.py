@@ -3,7 +3,10 @@
 '''
 
 import os
-import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg')
+from matplotlib import pyplot as plt
+
 
 starting_directory = "D:/Downloads/json/healthboards/" + "1-sorted/"
 # starting_directory = "/scratch/GW/pool0/fadamik/healthboards/sorted/"
