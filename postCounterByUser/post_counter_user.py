@@ -7,7 +7,9 @@ import matplotlib
 matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 
-
+'''
+Counts the number of new posts made by all users. Displays (or saves) the plot.
+'''
 starting_directory = "D:/Downloads/json/healthboards/" + "1-sorted/"
 # starting_directory = "/scratch/GW/pool0/fadamik/healthboards/sorted/"
 

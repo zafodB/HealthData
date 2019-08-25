@@ -85,9 +85,7 @@ for root, dirs, files in os.walk(starting_directory):
                 print("Processed files: " + str(len(file_list)))
 
         except Exception as e:
-            # e.
             print("Error processing file: " + file_name + ": " + str(e))
-            # print(e)
 
 # print(users_set)
 print("Unique users: " + str(len(users_set)))

@@ -8,9 +8,14 @@ import matplotlib
 matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 
+'''
+Recursively loops through all the files in the starting directory and counts the number of doctor
+replies (answers with user status 'md').
 
-starting_directory = "D:/Downloads/json/doctorQuestions/"
-# starting_directory = "/scratch/GW/pool0/fadamik/ehealthforum/sorted/D/DoctorQuestion"
+Displays (or saves) the histogram of the counted replies.
+'''
+# starting_directory = "D:/Downloads/json/doctorQuestions/"
+starting_directory = "/scratch/GW/pool0/fadamik/ehealthforum/sorted/"
 # starting_directory = "/GW/D5data-1/BioYago/ehealthforum/json/impact/2015-12-09/ehealthforum/1"
 # starting_directory = "D:/Downloads/json/healthboards/" + "1/"
 # output_directory
@@ -57,10 +62,9 @@ for root, dirs, files in os.walk(starting_directory):
                 print("Processed files: " + str(file_count))
 
         except Exception as e:
-            # e.
             print("Error processing file: " + file_name + ": " + str(e))
 
 print(histogram)
 plt.bar(list(histogram.keys()), histogram.values(), width=1.0, color='g')
 # plt.show()
-# plt.savefig(fname=("~/" + "figure"))
+# plt.savefig(fname=("figure"))
