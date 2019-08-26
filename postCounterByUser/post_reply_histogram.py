@@ -10,8 +10,8 @@ import os
 import json
 
 def map_to_bins(data_as_dictionary):
-    # bar_data = {'1': 0, '2': 0, '3': 0, '4': 0, '5-10': 0, '11-50': 0, '51-\n100': 0, '>100': 0}
-    bar_data = {'1': 0, '2': 0, '3': 0, '4': 0, '5-10': 0, '11-50': 0, '51-\n100': 0, '101-\n1000': 0, '>1000': 0}
+    bar_data = {'1': 0, '2': 0, '3': 0, '4': 0, '5-10': 0, '11-50': 0, '51-\n100': 0, '>100': 0}
+    # bar_data = {'1': 0, '2': 0, '3': 0, '4': 0, '5-10': 0, '11-50': 0, '51-\n100': 0, '101-\n1000': 0, '>1000': 0}
     for key in data_as_dictionary.keys():
         if 1 <= key <= 4:
             bar_data[str(key)] = data_as_dictionary[key]
@@ -21,16 +21,16 @@ def map_to_bins(data_as_dictionary):
             bar_data['11-50'] += data_as_dictionary[key]
         elif 50 < key <= 100:
             bar_data['51-\n100'] += data_as_dictionary[key]
-        elif 100 < key <= 1000:
-            bar_data['101-\n1000'] += data_as_dictionary[key]
+        # elif 100 < key <= 1000:
+        #     bar_data['101-\n1000'] += data_as_dictionary[key]
         else:
-            bar_data['>1000'] += data_as_dictionary[key]
+            bar_data['>100'] += data_as_dictionary[key]
 
     print(bar_data)
     return bar_data
 
 
-file = open("d:/downloads/json/post_replies_healthboards.json", "r", encoding="utf8")
+file = open("d:/downloads/json/post_replies_ehealthforum.json", "r", encoding="utf8")
 contents = file.read()
 file.close()
 file_as_json = json.loads(contents)
@@ -75,10 +75,10 @@ histogram_posts.pop(0)
 histogram_replies.pop(0)
 print(histogram_replies)
 
-bar_data_posts = map_to_bins(histogram_replies)
+bar_data_posts = map_to_bins(histogram_posts)
 
 fig = plt.figure()
-fig.suptitle("Number of replies per user in Healthboards.")
+fig.suptitle("Number of posts per user in eHealthforum.")
 
 plt.bar(list(bar_data_posts.keys()), bar_data_posts.values(), width=0.9, color='g')
 
@@ -93,4 +93,4 @@ for x, y in zip(list(bar_data_posts.keys()),bar_data_posts.values()):
                  ha='center')
 
 plt.show()
-fig.savefig("d:/downloads/json/user_replies_healthboards.png")
+fig.savefig("d:/downloads/json/user_posts_ehealthforum2.png")
