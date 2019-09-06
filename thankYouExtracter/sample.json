@@ -1,0 +1,45 @@
+{
+  "threadId": 886216,
+  "0____title": "I'm 16 and pregnant",
+  "0____mdReplyCount": 0,
+  "0____replyCount": 3,
+  "threadThankYouCount": 2,
+  "threadHelpfulCount": 1,
+  "threadSupportCount": 0,
+  "commonCategory": "Pregnancy",
+  "originCategory": "Pregnancy Forum",
+  "source": "ehealthforum",
+  "uniqueUsers": 2,
+  "replies": [
+    {
+      "postId": "456875",
+      "createdBy": {
+        "username": "Margot",
+        "status": "JuniorUser",
+        "gender": "female",
+        "location": "Berkley, USA",
+        "totalPosts": 5,
+        "joinDate": "01-12-2006-11:34:12"
+      },
+      "md_reply": false,
+      "postOrder": 0,
+      "postDate": "01-12-2007-11:34:12",
+      "postText": "Hi all, I am 16 years old and I got knocked up! plz help",
+      "postSupportCount": 0,
+      "postHelpfulCount": 0,
+      "postThankYouCount": 0,
+      "thankYous": [
+        {
+          "name": "samo",
+          "date": "01-12-2007-11:34:12"
+        },
+        {
+          "name": "matus",
+          "date": "01-04-2008-11:34:12"
+        }
+      ],
+      "support": [],
+      "helpful": []
+    }
+  ]
+}
