@@ -9,16 +9,21 @@ import datetime
 import traceback
 from dateutil.parser import *
 
-# forum = "ehealthforum"
 forum = "healthboards"
-# category_map_location = "D:/OneDrive/Documents/AB Germany/health_data/healthboards_map2.json"
+
 category_map_location = "healthboards_map.json"
-
-
-starting_directory = "/GW/D5data-1/BioYago/healthboards/html/0/"
-# starting_directory = "D:/Downloads/json/healthboards/html/"
+# category_map_location = "D:/OneDrive/Documents/AB Germany/health_data/healthboards_map2.json"
+starting_directory = "/GW/D5data-1/BioYago/healthboards/boards/"
+# starting_directory = "D:/Downloads/json/healthboards/cerebral-palsy/"
+output_directory = "/scratch/GW/pool0/fadamik/healthboards/json-sorted3/"
 # output_directory = "D:/Downloads/json/healthboards/html-sorted/"
-output_directory = "/scratch/GW/pool0/fadamik/healthboards/json-sorted/"
+
+
+def load_category_map(location):
+    category_map_file = open(location, "r", encoding="utf8")
+    contents = category_map_file.read()
+    category_map_file.close()
+    return json.loads(contents)
 
 
 def extract_all_items(file_name, file_location):
@@ -28,7 +33,7 @@ def extract_all_items(file_name, file_location):
         return category
 
     def extract_thread_id(soup):
-        id_class = soup.find("td", {"class": "vbmenu_control"}).findChildren()[0]
+        id_class = soup.find("td", {"id": "linkbacktools"}).findChildren()[0]
         thread_id = id_class.attrs['href'][3:].split("-")[0]
         return thread_id
 
@@ -38,10 +43,7 @@ def extract_all_items(file_name, file_location):
         return name
 
     def map_common_category(origin_category):
-        category_map_file = open(category_map_location, "r", encoding="utf8")
-        contents = category_map_file.read()
-        category_map_file.close()
-        category_map = json.loads(contents)
+
         category = category_map[origin_category]
         return category
 
@@ -168,7 +170,7 @@ def extract_all_items(file_name, file_location):
     def extract_helpful_marks(post_html, post_id):
         print("stuff")
 
-    thread_html = BeautifulSoup(open(file_location), "html.parser")
+    thread_html = BeautifulSoup(open(file_location, "rb"), "html.parser")
 
     thread_id = extract_thread_id(thread_html)
     thread_name = extract_thread_name(thread_html)
@@ -205,6 +207,7 @@ def extract_all_items(file_name, file_location):
         post_helpful_count = 0
 
         replies.append({
+            "postId": post_id,
             "createdBy": created_by,
             "mdReply": md_reply,
             "postOrder": post_order,
@@ -248,12 +251,33 @@ def extract_all_items(file_name, file_location):
         "commonCategory": common_category,
         "originCategory": origin_category,
         "source": source,
-        "originalFile": orininal_file,
+        "originalFile": [orininal_file],
         "uniqueUsers": unique_user_count,
         "replies": replies
     }
 
     return thread_id, output
+
+
+def update_content(old_json, new_json):
+    if new_json['originalFile'][0] in old_json['originalFile']:
+        return None
+
+    for reply in new_json['replies']:
+        old_json['replies'].append(reply)
+
+    unique_users = set()
+    for reply in old_json['replies']:
+        unique_users.add(reply['createdBy']['username'])
+
+    old_json['uniqueUsers'] = len(unique_users)
+
+    old_json['replyCount'] = len(old_json['replies'])
+    old_json['threadThankYouCount'] += new_json['threadThankYouCount']
+    old_json['threadSupportCount'] += new_json['threadSupportCount']
+
+    old_json['originalFile'].append(new_json['originalFile'][0])
+    return old_json
 
 
 def write_out_file(file_name, contents):
@@ -265,11 +289,18 @@ def write_out_file(file_name, contents):
     full_path = os.path.join(output_directory, folder_name, str(file_name) + ".json")
 
     if os.path.exists(full_path):
-        print("File already exists: " + full_path)
-    else:
+        existing_file = open(full_path, "r", encoding="utf8")
+        existing_json = json.loads(existing_file.read())
+        existing_file.close()
+
+        contents = update_content(existing_json, contents)
+
+    if contents:
         thread_file = open(full_path, "w", encoding="utf8")
         json.dump(contents, thread_file)
         thread_file.close()
+    else:
+        print("No update needed for file")
 
 
 file_count = 0
@@ -278,13 +309,18 @@ error_files = 0
 OKBLUE = '\033[94m'
 ENDC = '\033[0m'
 
+category_map = load_category_map(category_map_location)
+
 for root, dirs, files in os.walk(starting_directory):
     for file_name in files:
         try:
             # file_name = "260.html"
-            output_name, output_contents = extract_all_items(file_name, os.path.join(root, file_name))
 
-            # write_out_file(output_name, output_contents)
+            pattern = re.compile("index")
+            if not pattern.match(file_name):
+                output_name, output_contents = extract_all_items(file_name, os.path.join(root, file_name))
+
+                write_out_file(output_name, output_contents)
 
             successful_files += 1
             file_count += 1
@@ -295,4 +331,4 @@ for root, dirs, files in os.walk(starting_directory):
         except Exception as e:
             print("Error processing file: " + os.path.join(root, file_name) + ": " + str(e))
             # traceback.print_exc()
-            error_files +=1
+            error_files += 1
