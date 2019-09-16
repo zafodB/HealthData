@@ -14,15 +14,10 @@ forum = "ehealthforum"
 
 category_map_location = "ehealthforum_map.json"
 # category_map_location = "D:/OneDrive/Documents/AB Germany/health_data/ehealthforum_map.json"
-starting_directory = "/GW/D5data-1/BioYago/ehealthforum/html/"
+starting_directory = "/GW/D5data-1/BioYago/ehealthforum/health/"
 # starting_directory = "D:/Downloads/json/ehealthforums/html2/"
-output_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-sorted/"
+output_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-sorted2/"
 # output_directory = "D:/Downloads/json/ehealthforums/html-sorted/"
-
-
-# file_location = "D:/Downloads/json/ehealthforums/html/124.html"
-# file_location = "D:/Downloads/json/ehealthforums/html/35.html"
-# file_location = "D:/Downloads/json/ehealthforums/html-ehealthforum/231551.html"
 
 
 def load_category_map(location):
@@ -42,7 +37,7 @@ def extract_all_items(file_name, file_location):
         else:
             name_hash = hashlib.md5(name.encode('utf-8'))
 
-            return int.from_bytes(name_hash.digest()[:3], byteorder='big')
+            return str(int.from_bytes(name_hash.digest()[:3], byteorder='big'))
 
     def extract_origin_category(soup):
         category = soup.find("div", {"class": "vt_h2"}).findChild().findChildren()[-1].getText().replace(" Forum", "")
@@ -107,14 +102,15 @@ def extract_all_items(file_name, file_location):
         else:
             username = post_html.find("div", {"class": "vt_asked_by_user"}).getText().strip()
 
-        status = post_html.find("span", {"class": "vt_user_rank"})
-        if status:
-            status = status.getText().strip()
+        if post_html.find("span",{"class": "postfix-md"}) and not is_first_post:
+            status = "md"
+        else:
+            status = post_html.find("span", {"class": "vt_user_rank"})
+            if status:
+                status = status.getText().strip()
 
             if len(status) == 0:
                 status = None
-        else:
-            status = None
 
         return {
             "username": username,
@@ -288,22 +284,33 @@ OKBLUE = '\033[94m'
 ENDC = '\033[0m'
 
 category_map = load_category_map(category_map_location)
+unprocessed_files = []
+unprocessed_total = 0
 
 for root, dirs, files in os.walk(starting_directory):
     for file_name in files:
         try:
             # file_name = "274987.html"
 
-            pattern = re.compile("index")
-            if not pattern.match(file_name):
-                output_name, output_contents = extract_all_items(file_name, os.path.join(root, file_name))
+            pattern = re.compile("topic[0-9]*_[0-9]*")
+            pattern2 = re.compile("_medical_questions_")
 
-                # write_out_file(output_name, output_contents)
+            if pattern.match(file_name) or pattern2.match(file_name):
+                unprocessed_files.append(os.path.join(root, file_name))
+                unprocessed_total += 1
+            else:
+                output_name, output_contents = extract_all_items(file_name, os.path.join(root, file_name))
+                write_out_file(output_name, output_contents)
 
             successful_files += 1
             file_count += 1
             if file_count % 100 == 0:
-                print("Processed files: " + str(file_count))
+                unprocessed_list = open("unprocessed.txt", "a+")
+                json.dump(unprocessed_files, unprocessed_list)
+                unprocessed_list.close()
+                unprocessed_files = []
+
+                print("Unprocessed files: " + str(unprocessed_total) + ". Processed files: " + str(file_count))
                 print(OKBLUE + "Error-free ratio: " + str((error_files / successful_files) * 100) + "%   E: " + str(
                     error_files) + ENDC)
 
