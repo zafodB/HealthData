@@ -15,8 +15,9 @@ category_map_location = "healthboards_map.json"
 # category_map_location = "D:/OneDrive/Documents/AB Germany/health_data/healthboards_map2.json"
 starting_directory = "/GW/D5data-1/BioYago/healthboards/boards/"
 # starting_directory = "D:/Downloads/json/healthboards/cerebral-palsy/"
-output_directory = "/scratch/GW/pool0/fadamik/healthboards/json-sorted3/"
+output_directory = "/scratch/GW/pool0/fadamik/healthboards/json-sorted4/"
 # output_directory = "D:/Downloads/json/healthboards/html-sorted/"
+pairs_directory = "pairs/"
 
 
 def load_category_map(location):
@@ -26,7 +27,7 @@ def load_category_map(location):
     return json.loads(contents)
 
 
-def extract_all_items(file_name, file_location):
+def extract_all_items(file_name, file_location, pairs_file):
     def extract_origin_category(soup):
         navbars = soup.find_all("span", {"class": "navbar"})
         category = navbars[-1].getText()[2:]
@@ -120,13 +121,16 @@ def extract_all_items(file_name, file_location):
             for child in children:
                 if child.name == "div":
                     found_quote = True
-                    if child.next_sibling and child.next_sibling != "/n":
-                        message = message + child.next_sibling.strip().replace('\n', '')
+                    break
 
-        if not found_quote:
-            message = post_html.find("div", {"id": "post_message_" + post_id}).getText().strip().replace('\n', '')
+        if found_quote:
+            message = ' '.join(
+                t.strip() for t in post_html.find("div", {"id": "post_message_" + post_id})(text=True, recursive=False))
 
-        message = re.sub(' +', ' ', message)
+        else:
+            message = post_html.find("div", {"id": "post_message_" + post_id}).getText().strip()
+
+        message = re.sub(' +', ' ', message).replace('\n', '')
         return message, found_quote
 
     def extract_post_date(post_html):
@@ -222,20 +226,24 @@ def extract_all_items(file_name, file_location):
             "helpful": helpful
         })
 
-        # replies.append({
-        #     "opo": created_by,
-        #     "drr": md_reply,
-        #     "ord": post_order,
-        #     "dat": post_date,
-        #     "txt": post_text,
-        #     "quo": has_quotes,
-        #     "spc": post_hugs_count,
-        #     "tyc": post_thank_you_count,
-        #     "hfc": post_helpful_count,
-        #     "tys": thank_yous,
-        #     "sup": support_hugs,
-        #     "h": helpful
-        # })
+        tab_char = "\t"
+        if (post_thank_you_count > 0 or post_hugs_count > 0) and index > 0:
+            pairs_file.write(
+                replies[0]["postText"] + tab_char +
+                replies[0]["createdBy"]["username"] + tab_char +
+                replies[0]["createdBy"]["status"] + tab_char +
+                common_category + tab_char +
+                post_text + tab_char +
+                str(has_quotes) + tab_char +
+                created_by["username"] + tab_char +
+                created_by["status"] + tab_char +
+                common_category + tab_char +
+                str(post_thank_you_count) + tab_char +
+                str(post_hugs_count) + tab_char +
+                str(post_helpful_count) + tab_char +
+                "votes" + tab_char +
+                str(True) + "\n"
+            )
 
     md_reply_count = 0
     unique_user_count = len(unique_users)
@@ -263,8 +271,15 @@ def update_content(old_json, new_json):
     if new_json['originalFile'][0] in old_json['originalFile']:
         return None
 
+    reply_ids = set()
+    for reply in old_json['replies']:
+        reply_ids.add(reply['postId'])
+
     for reply in new_json['replies']:
-        old_json['replies'].append(reply)
+        if reply['postId'] in reply_ids:
+            continue
+        else:
+            old_json['replies'].append(reply)
 
     unique_users = set()
     for reply in old_json['replies']:
@@ -299,8 +314,8 @@ def write_out_file(file_name, contents):
         thread_file = open(full_path, "w", encoding="utf8")
         json.dump(contents, thread_file)
         thread_file.close()
-    else:
-        print("No update needed for file")
+    # else:
+    # print("No update needed for file")
 
 
 file_count = 0
@@ -311,24 +326,35 @@ ENDC = '\033[0m'
 
 category_map = load_category_map(category_map_location)
 
+pairs_file = open(os.path.join(pairs_directory, "pairs0.txt"), "a+", encoding="utf8")
+
 for root, dirs, files in os.walk(starting_directory):
     for file_name in files:
         try:
-            # file_name = "260.html"
+            # file_name = "375423.html"
+            # root = "D:/Downloads/json/healthboards"
 
             pattern = re.compile("index")
             if not pattern.match(file_name):
-                output_name, output_contents = extract_all_items(file_name, os.path.join(root, file_name))
+                output_name, output_contents = extract_all_items(file_name, os.path.join(root, file_name), pairs_file)
 
                 write_out_file(output_name, output_contents)
 
             successful_files += 1
             file_count += 1
+
             if file_count % 100 == 0:
                 print("Processed files: " + str(file_count))
-                print(OKBLUE + "Error-free ratio: " + str((error_files/successful_files)*100) + "%   E: " + str(error_files) + ENDC)
+                print(OKBLUE + "Error-free ratio: " + str((error_files / successful_files) * 100) + "%   E: " + str(
+                    error_files) + ENDC)
+
+            if file_count % 10000 == 0:
+                pairs_file.close()
+                pairs_file = open(os.path.join(pairs_directory, "pairs" + str(file_count / 10000) + ".txt"), "a+",
+                                  encoding="utf8")
+
 
         except Exception as e:
             print("Error processing file: " + os.path.join(root, file_name) + ": " + str(e))
-            # traceback.print_exc()
+            traceback.print_exc()
             error_files += 1

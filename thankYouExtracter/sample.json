@@ -1,45 +1,168 @@
 {
-  "threadId": 886216,
-  "title": "I'm 16 and pregnant",
-  "mdReplyCount": 0,
-  "replyCount": 3,
-  "threadThankYouCount": 2,
-  "threadHelpfulCount": 1,
+  "threadId": "2288",
+  "threadHelpfulCount": 0,
   "threadSupportCount": 0,
-  "commonCategory": "Pregnancy",
-  "originCategory": "Pregnancy Forum",
   "source": "ehealthforum",
-  "uniqueUsers": 2,
   "replies": [
     {
-      "postId": "456875",
+      "postId": "9289",
       "createdBy": {
-        "username": "Margot",
-        "status": "JuniorUser",
-        "gender": "female",
-        "location": "Berkley, USA",
-        "totalPosts": 5,
-        "joinDate": "01-12-2006-11:34:12"
+        "totalPosts": null,
+        "gender": null,
+        "joinDate": null,
+        "status": null,
+        "location": null,
+        "username": "Andy W"
       },
-      "md_reply": false,
       "postOrder": 0,
-      "postDate": "01-12-2007-11:34:12",
-      "postText": "Hi all, I am 16 years old and I got knocked up! plz help",
       "postSupportCount": 0,
       "postHelpfulCount": 0,
+      "mdReply": false,
       "postThankYouCount": 0,
-      "thankYous": [
-        {
-          "name": "samo",
-          "date": "01-12-2007-11:34:12"
-        },
-        {
-          "name": "matus",
-          "date": "01-04-2008-11:34:12"
-        }
+      "postText": "Im a little concerned. I began ovulating on october 4th and had sex on the 5th. We used a condom but it broke. I know this sounds terrible but I had unprotected sex with someone else on the 9th and 10th. Im clueless when it comes to ovulation and when it is possible to become pregnant. Could I be pregnant? And if so (this may be a stupid question) is it more likley that I would become pregnant on the 4th (the day after I began to ovulate) or on the 9th or 10th (6 days after I began to ovulate). I know its a little early to assume things but my fear is that I may be pregnant and not know who the father is.",
+      "helpful": [
       ],
-      "support": [],
-      "helpful": []
+      "thankYous": [
+      ],
+      "hasQuotes": false,
+      "postDate": "2003-10-12T00:00:00",
+      "supportHugs": [
+      ]
+    },
+    {
+      "postId": "9292",
+      "createdBy": {
+        "totalPosts": null,
+        "gender": null,
+        "joinDate": null,
+        "status": "Active User, very eHealthy",
+        "location": null,
+        "username": "Suzy"
+      },
+      "postOrder": 1,
+      "postSupportCount": 0,
+      "postHelpfulCount": 0,
+      "mdReply": false,
+      "postThankYouCount": 0,
+      "postText": "Dear andy, i am unsure as to whether you are referring to your actual ovulation or your period. Ovulation and menstruation are 2 seperate things. You ovulate 14 days before your next period, which is when your body has released an egg and the egg is waiting to be fertilised. So if you had intercourse 14 days before your next period is due, then your chances of becoming pregnant around that time are very high. Any time either side of this, it is still possible for you to become pregnant as every woman is different and ovulates at different times of the month, depending on how regular your period is, and whether or not you have a 28 day cycle. Regards, .::suzy::.",
+      "helpful": [
+      ],
+      "thankYous": [
+      ],
+      "hasQuotes": false,
+      "postDate": "2003-10-12T00:00:00",
+      "supportHugs": [
+      ]
+    },
+    {
+      "postId": "9293",
+      "createdBy": {
+        "totalPosts": null,
+        "gender": null,
+        "joinDate": null,
+        "status": null,
+        "location": null,
+        "username": "Andy W"
+      },
+      "postOrder": 2,
+      "postSupportCount": 0,
+      "postHelpfulCount": 0,
+      "mdReply": false,
+      "postThankYouCount": 0,
+      "postText": "I was definitely ovulating. I began ovulating on the 4th. My period is due on the 18th. Im sure pregnancy is possible. My main concern is about when it would be most likely to become pregnant... One day after ovulation begins or six days after ovulation begins. Does it make a difference?",
+      "helpful": [
+      ],
+      "thankYous": [
+      ],
+      "hasQuotes": false,
+      "postDate": "2003-10-12T00:00:00",
+      "supportHugs": [
+      ]
+    },
+    {
+      "postId": "9295",
+      "createdBy": {
+        "totalPosts": null,
+        "gender": null,
+        "joinDate": null,
+        "status": "Active User, very eHealthy",
+        "location": null,
+        "username": "Suzy"
+      },
+      "postOrder": 3,
+      "postSupportCount": 0,
+      "postHelpfulCount": 0,
+      "mdReply": false,
+      "postThankYouCount": 0,
+      "postText": "Dear andy, if your period is due on the 18th, then you are correct in saying you were ovulating on the 4th. So when you had sex on the 5th, you would have been extremely fertile. It is important that you either do a home pregnancy test closer to the 18th, as the hcg levels in your body should be strong enough by then to detect a possible pregnancy. Alternatively you can go to your doctor now and ask for a blood test. The blood test should pick up any traces of hcg levels that are present now. They are very accurate. As for who the father would be if you were pregnant, that is a hard question to answer, but I guess it more likely to be the guy who you were with on the 5th as that was your most fertile day. On the other hand, there is still the possibility that you were still fertile on the 9th, therefore if you are pregnant, you would need a paternity test to decide who the biological father is. Good luck, .::suzy::.",
+      "helpful": [
+      ],
+      "thankYous": [
+      ],
+      "hasQuotes": false,
+      "postDate": "2003-10-12T00:00:00",
+      "supportHugs": [
+      ]
+    },
+    {
+      "postId": "1341535",
+      "createdBy": {
+        "totalPosts": null,
+        "gender": null,
+        "joinDate": null,
+        "status": null,
+        "location": null,
+        "username": "Hbkgirl"
+      },
+      "postOrder": 4,
+      "postSupportCount": 0,
+      "postHelpfulCount": 0,
+      "mdReply": false,
+      "postThankYouCount": 0,
+      "postText": "Whatever happened to you? Please provide an update!",
+      "helpful": [
+      ],
+      "thankYous": [
+      ],
+      "hasQuotes": false,
+      "postDate": "2011-03-31T00:00:00",
+      "supportHugs": [
+      ]
+    },
+    {
+      "postId": "1341538",
+      "createdBy": {
+        "totalPosts": null,
+        "gender": null,
+        "joinDate": null,
+        "status": null,
+        "location": null,
+        "username": "Hbkgirl"
+      },
+      "postOrder": 5,
+      "postSupportCount": 0,
+      "postHelpfulCount": 0,
+      "mdReply": false,
+      "postThankYouCount": 0,
+      "postText": "Whatever happened to you? Please provide an update!",
+      "helpful": [
+      ],
+      "thankYous": [
+      ],
+      "hasQuotes": false,
+      "postDate": "2011-03-31T00:00:00",
+      "supportHugs": [
+      ]
     }
-  ]
+  ],
+  "replyCount": 6,
+  "uniqueUsers": 3,
+  "mdReplyCount": 0,
+  "threadThankYouCount": 0,
+  "commonCategory": "Pregnancy",
+  "originalFile": [
+    "209542.html"
+  ],
+  "originCategory": "Am I Pregnant",
+  "title": "Clueless About Ovulation And Timing"
 }
