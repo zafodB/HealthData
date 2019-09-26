@@ -2,54 +2,83 @@
  * Created by filip on 24/09/2019
 '''
 
-import pandas as pd
 import os, json, traceback
 
+starting_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-sorted3/"
+# starting_directory = "D:/Downloads/json/ehealthforum/json-sorted"
+output_directory_data = "/scratch/GW/pool0/fadamik/ehealthforum/trac/data"
+# output_directory_data = "D:/Downloads/json/ehealthforum/"
+output_directory_maps = "/scratch/GW/pool0/fadamik/ehealthforum/trac/maps"
+# output_directory_maps = "D:/Downloads/json/ehealthforum/trac/maps"
+output_directory_queries = "/scratch/GW/pool0/fadamik/ehealthforum/trac/queries"
+# output_directory_queries = "D:/Downloads/json/ehealthforum/trac/queries"
 
-df = pd.read_csv("D:/Downloads/json/ehealthforum/pairs/actual/actual-pairs-filtered2.txt", sep='\t')
+processed_files = 0
+error_files = 0
+documents_written = 0
 
-file = open("D:/Downloads/json/ehealthforum/data.trac", "w+", encoding="utf8")
-# file = open("D:/Downloads/json/ehealthforum/topics.txt", "w+", encoding="utf8")
+data_file = open(os.path.join(output_directory_data, "data1.trac"), "w+", encoding="utf8")
+maps_file = open(os.path.join(output_directory_maps, "topic-map1.txt"), "w+", encoding="utf8")
+query_file = open(os.path.join(output_directory_queries, "topic1.txt"), "w+", encoding="utf8")
 
-queries_set = set()
-query_map = {}
+for root, dirs, files in os.walk(starting_directory):
+    for file_name in files:
+        try:
+            file = open(os.path.join(root, file_name), "r", encoding="utf8")
+            content = json.loads(file.read())
+            file.close()
 
-for index, item in df.iterrows():
-    query_text = str(item['original text'])
-    doc_id = "EF-" + str(index)
+            query = content['replies'][0]
+            topic_no = str(content['threadId'])
 
-    if query_text not in queries_set:
-        queries_set.add(query_text)
-        query_map[query_text] = [doc_id]
-    else:
-        query_map[query_text].append(doc_id)
+            query_file.write("<top>\n\n<num> Number: " + topic_no + "\n<title>\n" + query[
+                'postText'] + "\n\n<desc> Description:\nNA\n\n<narr> Narrative:\nNA\n\n</top>\n")
 
-    file.write("<DOC>\n<DOCNO>EF-" + str(doc_id) + "</DOCNO>\n")
-    file.write("<TEXT>\n" + str(item['document text']) + "\n</TEXT>\n")
-    file.write("</DOC>\n")
+            maps_file.write(topic_no)
 
+            for index, reply in enumerate(content['replies']):
+                if index == 0:
+                    continue
 
-file.close()
+                document_id = "EF-" + str(int(content['threadId'], base=10) * 10 + index)
 
-file = open("D:/Downloads/json/ehealthforum/topics.txt", "w+", encoding="utf8")
-file_maps = open("D:/Downloads/json/ehealthforum/topic-map.txt", "w+", encoding="utf8")
+                data_file.write("<DOC>\n<DOCNO>EF-" + document_id + "</DOCNO>\n")
+                data_file.write("<TEXT>\n" + str(reply['postText']) + "\n</TEXT>\n")
+                data_file.write("</DOC>\n")
 
-for index, query in enumerate(queries_set):
-    query_id = str(1000 + index)
+                maps_file.write("\t" + document_id)
 
-    file_maps.write(query_id)
-    for id in query_map[query]:
-        file_maps.write("\t" + id)
+                documents_written += 1
 
-    file_maps.write("\n")
+                if documents_written % 1000 == 0:
+                    data_file.close()
+                    data_file = open(
+                        os.path.join(output_directory_data, "data" + str(documents_written // 1000) + ".trac"),
+                        "w+", encoding="utf8")
 
-    file.write("<top>\n\n<num> Number: " + query_id + "\n<title>\n" +
-               query + "\n\n<desc> Description:\nNA\n\n<narr> Narrative:\nNA\n\n</top>\n")
+            maps_file.write('\n')
 
-    # if len(query) > 100:
-    #     print(query[0:100] + str(query_map[query]))
-    # else:
-    #     print(query + str(query_map[query]))
+            processed_files += 1
 
-file.close()
-file_maps.close()
+            if processed_files % 1000 == 0:
+                query_file.close()
+                query_file = open(
+                    os.path.join(output_directory_queries, "data" + str(processed_files // 1000) + ".trac"),
+                    "w+", encoding="utf8")
+
+            if processed_files % 100000 == 0:
+                maps_file.close()
+                maps_file = open(os.path.join(output_directory_maps, "data" + str(processed_files // 100000) + ".trac"),
+                                 "w+", encoding="utf8")
+
+            if processed_files % 100 == 0:
+                print("Processed files: " + str(processed_files))
+
+        except Exception as e:
+            print("Error processing file: " + os.path.join(root, file_name) + ": " + str(e))
+            traceback.print_exc()
+            error_files += 1
+
+data_file.close()
+query_file.close()
+maps_file.close()
