@@ -1,13 +1,14 @@
 '''
  * Created by filip on 26/09/2019
 '''
-import os, json, traceback, re
+import os, json, traceback, re, hashlib
 
 starting_directory = "/GW/D5data-11/eterolli/Forums_Text/Ehealthforums"
-# starting_directory = "D:/Downloads/json/ehealthforum/annotated"
+# starting_directory = "/home/fadamik/annotated"
+# starting_directory = "D:/Downloads/json/ehealthforum/annotated/test"
 data_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-sorted3/"
 # data_directory = "D:/Downloads/json/ehealthforum/json-sorted2"
-output_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
+output_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated2/"
 # output_directory = "D:/Downloads/json/ehealthforum/json-annotated"
 
 
@@ -38,24 +39,36 @@ def extract_thread_id(link: str) -> str:
 
 
 # Locate and open existing JSON file and return contents as dict
-def open_file(file_id: str) -> dict:
+def open_file(file_id: str, name: str) -> dict:
     folder = str(int(file_id, base=10) // 1000)
 
     full_path = os.path.join(data_directory, folder, file_id + ".json")
-    if os.path.exists(full_path):
-        json_file = open(full_path, "r", encoding="utf8")
-        json_contents = json.loads(json_file.read())
-        json_file.close()
+    if not os.path.exists(full_path):
+        name_hash = hashlib.md5(name.encode('utf-8'))
 
-        return json_contents
-    else:
-        raise FileNotFoundError("File with id: " + file_id + " not found")
+        hashed_id = str(int.from_bytes(name_hash.digest()[:3], byteorder='big'))
+        folder = str(int(hashed_id, base=10) // 1000)
+        full_path = os.path.join(data_directory, folder, hashed_id + ".json")
+
+        if not os.path.exists(full_path):
+            raise FileNotFoundError("File with id: " + file_id + " not found")
+
+    json_file = open(full_path, "r", encoding="utf8")
+    json_contents = json.loads(json_file.read())
+    json_file.close()
+
+    return json_contents
 
 
 # Update the existing dictionary with the annotated text and other data
 def update_content(existing_content: dict, new_content: dict) -> dict:
     existing_content['title'] = new_content['_source']['Title']
-    annotated_text = new_content['_source']['aida']['annotatedText'].split('\n\n')
+    try:
+        annotated_text = new_content['_source']['aida']['annotatedText'].split('\n\n')
+        original_text = new_content['_source']['aida']['originalText'].split('\n\n')
+    except KeyError:
+        raise KeyError("Could not find 'aida' key.")
+
     for index, text in enumerate(annotated_text):
         if index == 0:
             existing_content['annotatedTitle'] = text
@@ -64,11 +77,20 @@ def update_content(existing_content: dict, new_content: dict) -> dict:
         elif index == len(annotated_text) - 1:
             continue
         else:
-            pattern = re.compile("\[\[C[0-9]+\|\S*\]\]")
-            annotations = re.findall(pattern, text)
+            for reply_index, existing_reply in enumerate(existing_content['replies']):
+                existing = existing_reply['postText'].replace(' ','').replace(',', '').replace('.', '')
+                original = original_text[index].replace(' ','').replace(',', '').replace('.', '')
+                if existing == original:
 
-            existing_content['replies'][index - 2]['annotatedText'] = text
-            existing_content['replies'][index - 2]['annotationsFull'] = annotations
+                    pattern = re.compile("\[\[C[0-9]+\|\S*\]\]")
+                    annotations = re.findall(pattern, text)
+
+                    existing_content['replies'][reply_index]['annotatedText'] = text
+                    existing_content['replies'][reply_index]['annotationsFull'] = annotations
+                    break
+
+                # print(json.dumps(annotated_text))
+                # print(json.dumps(existing_content['replies']))
 
     return existing_content
 
@@ -85,8 +107,10 @@ def output_to_file(content_to_write: dict, file_id: str):
 
 # Loop through files with the annotated text
 def loop_through():
-    processed_files = 0
+    processed_threads = 0
     error_files = 0
+
+    duplicate_count = 0
 
     for root, dirs, files in os.walk(starting_directory):
         for file_name in files:
@@ -98,9 +122,10 @@ def loop_through():
                 for thread in contents['hits']['hits']:
                     source_link = thread['_source']['Link']
                     thread_id = extract_thread_id(source_link)
+                    thread_name = thread['_source']['Title']
 
                     try:
-                        json_file_contents = open_file(thread_id)
+                        json_file_contents = open_file(thread_id, thread_name)
                         updated_content = update_content(json_file_contents, thread)
                         output_to_file(updated_content, thread_id)
 
@@ -113,16 +138,24 @@ def loop_through():
                         continue
                     except IndexError:
                         error_files += 1
+                        traceback.print_exc()
                         print("Index error in file: " + thread_id)
+                    except KeyError:
+                        print("Could not find a key")
+                        continue
 
-                processed_files += 1
+                    processed_threads += 1
 
-                if processed_files % 100 == 0:
-                    print("Processed files: " + str(processed_files) + ", error files: " + str(error_files))
+                    if processed_threads % 10000 == 0:
+                        print("Processed threads: " + str(processed_threads) + ", duplicate count: " + str(
+                            duplicate_count))
 
             except Exception as e:
                 print("Error processing file: " + os.path.join(root, file_name) + ": " + str(e))
                 traceback.print_exc()
                 error_files += 1
+
+    print("Processed threads: " + str(processed_threads) + ", duplicate count: " + str(duplicate_count))
+
 
 loop_through()
