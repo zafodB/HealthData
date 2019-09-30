@@ -1,13 +1,18 @@
-'''
+"""
  * Created by filip on 15/08/2019
-'''
+
+ Scrapes HTML files of eHealthForum and saves the relevant information into JSON files. One thread in the forum is
+ represented by one JSON file. The name of the JSON file represents the thread ID extracted from the HTML. If the
+ thread ID could not be extracted, hash value of the post title is used.
+"""
+
 import hashlib
+import json
+import os
+import re
+import traceback
 
 from bs4 import BeautifulSoup
-import json, os
-import re
-import datetime
-import traceback
 from dateutil.parser import *
 
 forum = "ehealthforum"
@@ -102,7 +107,7 @@ def extract_all_items(file_name, file_location):
         else:
             username = post_html.find("div", {"class": "vt_asked_by_user"}).getText().strip()
 
-        if post_html.find("span",{"class": "postfix-md"}) and not is_first_post:
+        if post_html.find("span", {"class": "postfix-md"}) and not is_first_post:
             status = "md"
         else:
             status = post_html.find("span", {"class": "vt_user_rank"})

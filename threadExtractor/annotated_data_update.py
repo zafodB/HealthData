@@ -1,40 +1,59 @@
 '''
  * Created by filip on 26/09/2019
+
+Reads through a directory of json files containing annotated text and other data. Identifies a corresponding JSON
+file based on the thread ID and updates the replies in this file with the annotated text. Saves the JSON file in a
+new directory.
 '''
+
+
 import os, json, traceback, re, hashlib
 
-starting_directory = "/GW/D5data-11/eterolli/Forums_Text/Ehealthforums"
+starting_directory = "/GW/D5data-11/eterolli/Forums_Text/HealthBoards"
 # starting_directory = "/home/fadamik/annotated"
-# starting_directory = "D:/Downloads/json/ehealthforum/annotated/test"
-data_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-sorted3/"
+# starting_directory = "D:/Downloads/json/healthboards/annotated"
+data_directory = "/scratch/GW/pool0/fadamik/healthboards/json-sorted4/"
 # data_directory = "D:/Downloads/json/ehealthforum/json-sorted2"
-output_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated2/"
+output_directory = "/scratch/GW/pool0/fadamik/healthboards/json-annotated/"
 # output_directory = "D:/Downloads/json/ehealthforum/json-annotated"
+
+healthboards = True
 
 
 # Extract ID of the thread from the given link
 def extract_thread_id(link: str) -> str:
-    pattern0 = re.compile("t[0-9]+-a[0-9]\.html")
-    pattern1 = re.compile("t[0-9]+\.html")
-    pattern2 = re.compile("topic[0-9]+\.html")
-
     last_part_url = link.split('/')[-1]
-    thread_id = pattern0.search(last_part_url)
 
-    if thread_id:
-        thread_id = thread_id.group(0)[1:-8]
-    else:
-        thread_id = pattern1.search(last_part_url)
+    if healthboards:
+        pattern0 = re.compile("[0-9]+-")
+        thread_id = pattern0.search(last_part_url)
+
         if thread_id:
-            thread_id = thread_id.group(0)[1:-5]
+            thread_id = thread_id.group(0)[:-1]
         else:
-            thread_id = pattern2.search(last_part_url)
-            if thread_id:
-                thread_id = thread_id.group(0)[5:-5]
-            else:
-                raise ValueError("Thread ID could not be extracted from link: " + link)
+            raise ValueError("Thread ID could not be extracted from link: " + link)
 
-    # print(str(thread_id) + " from: " + link)
+    else:
+        pattern0 = re.compile("t[0-9]+-a[0-9]\.html")
+        pattern1 = re.compile("t[0-9]+\.html")
+        pattern2 = re.compile("topic[0-9]+\.html")
+
+        thread_id = pattern0.search(last_part_url)
+
+        if thread_id:
+            thread_id = thread_id.group(0)[1:-8]
+        else:
+            thread_id = pattern1.search(last_part_url)
+            if thread_id:
+                thread_id = thread_id.group(0)[1:-5]
+            else:
+                thread_id = pattern2.search(last_part_url)
+                if thread_id:
+                    thread_id = thread_id.group(0)[5:-5]
+                else:
+                    raise ValueError("Thread ID could not be extracted from link: " + link)
+
+        # print(str(thread_id) + " from: " + link)
     return thread_id
 
 
@@ -78,10 +97,9 @@ def update_content(existing_content: dict, new_content: dict) -> dict:
             continue
         else:
             for reply_index, existing_reply in enumerate(existing_content['replies']):
-                existing = existing_reply['postText'].replace(' ','').replace(',', '').replace('.', '')
-                original = original_text[index].replace(' ','').replace(',', '').replace('.', '')
+                existing = existing_reply['postText'].replace(' ', '').replace(',', '').replace('.', '')
+                original = original_text[index].replace(' ', '').replace(',', '').replace('.', '')
                 if existing == original:
-
                     pattern = re.compile("\[\[C[0-9]+\|\S*\]\]")
                     annotations = re.findall(pattern, text)
 
@@ -119,12 +137,14 @@ def loop_through():
                 contents = json.loads(file.read())
                 file.close()
 
+                # Loop through replies in the selected JSON file
                 for thread in contents['hits']['hits']:
                     source_link = thread['_source']['Link']
                     thread_id = extract_thread_id(source_link)
                     thread_name = thread['_source']['Title']
 
                     try:
+                        pass
                         json_file_contents = open_file(thread_id, thread_name)
                         updated_content = update_content(json_file_contents, thread)
                         output_to_file(updated_content, thread_id)

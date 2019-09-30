@@ -1,6 +1,14 @@
-'''
+"""
  * Created by filip on 24/09/2019
-'''
+
+ Reads JSON files from the specified directory. Creates *.trac files containing of arbitrary document ID,
+ reply text and other information. Writes 1000 documents per 1 .trac file.
+
+ Creates a query file consisting of topic number and the text of the first post in the thread.
+
+ Creates a map file mapping queries to documents.
+"""
+
 
 import os, json, traceback
 
@@ -44,6 +52,7 @@ for root, dirs, files in os.walk(starting_directory):
 
                 data_file.write("<DOC>\n<DOCNO>EF-" + document_id + "</DOCNO>\n")
                 data_file.write("<TEXT>\n" + str(reply['postText']) + "\n</TEXT>\n")
+                data_file.write("<doctitle>" + content['title'] + "</doctitle>")
                 data_file.write("</DOC>\n")
 
                 maps_file.write("\t" + document_id)

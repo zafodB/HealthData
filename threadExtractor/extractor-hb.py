@@ -1,12 +1,19 @@
-'''
+"""
  * Created by filip on 15/08/2019
-'''
+
+ Scrapes HTML files of HealthBoards and saves the relevant information into JSON files. One thread in the forum is
+ represented by one JSON file.
+
+ Creates pairs file with first-post:reply structure, writing out all replies that received at least one vote and their
+ corresponding first post (used for query:document pairs)
+"""
+
+import json
+import os
+import re
+import traceback
 
 from bs4 import BeautifulSoup
-import json, os
-import re
-import datetime
-import traceback
 from dateutil.parser import *
 
 forum = "healthboards"
@@ -172,7 +179,7 @@ def extract_all_items(file_name, file_location, pairs_file):
         return support_hugs_list
 
     def extract_helpful_marks(post_html, post_id):
-        print("stuff")
+        pass
 
     thread_html = BeautifulSoup(open(file_location, "rb"), "html.parser")
 
@@ -226,6 +233,7 @@ def extract_all_items(file_name, file_location, pairs_file):
             "helpful": helpful
         })
 
+        # Write out data to a text file the reply has at least one vote.
         tab_char = "\t"
         if (post_thank_you_count > 0 or post_hugs_count > 0) and index > 0:
             pairs_file.write(
@@ -314,8 +322,6 @@ def write_out_file(file_name, contents):
         thread_file = open(full_path, "w", encoding="utf8")
         json.dump(contents, thread_file)
         thread_file.close()
-    # else:
-    # print("No update needed for file")
 
 
 file_count = 0
@@ -331,9 +337,6 @@ pairs_file = open(os.path.join(pairs_directory, "pairs0.txt"), "a+", encoding="u
 for root, dirs, files in os.walk(starting_directory):
     for file_name in files:
         try:
-            # file_name = "375423.html"
-            # root = "D:/Downloads/json/healthboards"
-
             pattern = re.compile("index")
             if not pattern.match(file_name):
                 output_name, output_contents = extract_all_items(file_name, os.path.join(root, file_name), pairs_file)
@@ -352,7 +355,6 @@ for root, dirs, files in os.walk(starting_directory):
                 pairs_file.close()
                 pairs_file = open(os.path.join(pairs_directory, "pairs" + str(file_count / 10000) + ".txt"), "a+",
                                   encoding="utf8")
-
 
         except Exception as e:
             print("Error processing file: " + os.path.join(root, file_name) + ": " + str(e))
