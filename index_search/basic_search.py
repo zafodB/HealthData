@@ -10,16 +10,18 @@ sys.path.append(os.path.join(anserini_root, "src/main/python"))
 
 from src.main.python.pyserini.search import pysearch
 
-searcher = pysearch.SimpleSearcher('d:/downloads/json/ehealthforum/index/lucene-index.ehealthforum.pos+docvectors+rawdocs')
+searcher = pysearch.SimpleSearcher('d:/downloads/json/ehealthforum/index/lucene-index.ef-json-test.pos+docvectors+rawdocs')
 
 # To additionally configure search options, such as using BM25+RM3:
 searcher.set_bm25_similarity(0.9, 0.4)
-searcher.set_rm3_reranker(10, 10, 0.5)
+# searcher.set_rm3_reranker(10, 10, 0.5)
 
-hits = searcher.search('hubble space telescope')
+hits = searcher.search_fields('Want to begin Hcg', f="title", boost=10000, k=20)
 
 # the docid of the 1st hit
-print(hits[0].docid)
+# print(hits[0].docid)
+for hit in hits:
+    print(hit.docid)
 
 # the internal Lucene docid of the 1st hit
 print(hits[0].ldocid)
