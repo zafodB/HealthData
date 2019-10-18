@@ -7,13 +7,13 @@ import json
 import re
 import traceback
 
-starting_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated2/"
+starting_directory = "/scratch/GW/pool0/fadamik/healthboards/json-annotated/"
 # starting_directory = "D:/Downloads/json/ehealthforum/json-annotated"
-output_directory_data = "/scratch/GW/pool0/fadamik/ehealthforum/trac/json/data"
+output_directory_data = "/scratch/GW/pool0/fadamik/healthboards/trac/json/data"
 # output_directory_data = "D:/Downloads/json/ehealthforum/trac/json/data"
-output_directory_maps = "/scratch/GW/pool0/fadamik/ehealthforum/trac/json/maps"
+output_directory_maps = "/scratch/GW/pool0/fadamik/healthboards/trac/json/maps"
 # output_directory_maps = "D:/Downloads/json/ehealthforum/trac/json/maps"
-output_directory_queries = "/scratch/GW/pool0/fadamik/ehealthforum/trac/json/queries"
+output_directory_queries = "/scratch/GW/pool0/fadamik/healthboards/trac/json/queries"
 # output_directory_queries = "D:/Downloads/json/ehealthforum/trac/json/queries"
 
 processed_files = 0
@@ -35,8 +35,14 @@ for root, dirs, files in os.walk(starting_directory):
             query = content['replies'][0]
             topic_no = str(content['threadId'])
 
-            query_file.write("<top>\n\n<num> Number: " + topic_no + "\n<title>\n" + query[
-                'postText'] + "\n\n<desc> Description:\nNA\n\n<narr> Narrative:\nNA\n\n</top>\n")
+            query_text = query['postText']
+            word_count = len(re.findall(r'\w+', query_text))
+
+            if word_count > 1020:
+                continue
+
+            query_file.write("<top>\n\n<num> Number: " + topic_no + "\n<title>\n" + query_text
+                             + "\n\n<desc> Description:\nNA\n\n<narr> Narrative:\nNA\n\n</top>\n")
 
             maps_file_2.write(topic_no)
             maps_file_3.write(topic_no)
@@ -45,7 +51,7 @@ for root, dirs, files in os.walk(starting_directory):
                 # if index == 0:
                 #     continue
 
-                document_id = "EF" + str(int(content['threadId'], base=10)) + "r" + str(index)
+                document_id = "EF" + content['threadId'] + "r" + str(index)
 
                 text = reply['postText']
                 annotated_text = text
