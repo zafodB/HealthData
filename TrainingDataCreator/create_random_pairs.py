@@ -12,7 +12,8 @@ output_directory = "/scratch/GW/pool0/fadamik/pairs/ehealthboards/random"
 
 path_list = []
 
-# Construct a list of all files in the starting folder. We will pop files from this list as we generate documents and queries
+# Construct a list of all files in the starting folder. We will pop files from this list as we generate documents and
+# queries
 for root, dirs, files in os.walk(starting_directory):
     for file in files:
         path_list.append(os.path.join(root, file))
