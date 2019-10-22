@@ -18,14 +18,15 @@ import random
 from relevanceRanking.connect_to_kb import is_informative, connect_elasticsearch
 from elasticsearch import Elasticsearch
 
-starting_directory = "D:/Downloads/json/ehealthforum/json-annotated/"
-output_directory = "D:/downloads/json/ehealthforum/trac/relevance/"
-informative_nodes_list_location = "D:/downloads/json/informative-entities.txt"
-other_nodes_list_location = "D:/downloads/json/other-entities.txt"
+# starting_directory = "D:/Downloads/json/ehealthforum/json-annotated/"
+# output_directory = "D:/downloads/json/ehealthforum/trac/relevance/"
+# informative_nodes_list_location = "D:/downloads/json/informative-entities.txt"
+# other_nodes_list_location = "D:/downloads/json/other-entities.txt"
 
-# starting_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
-# output_directory = "/scratch/GW/pool0/fadamik/ehealthforum/trac/relevance/"
-# informative_nodes_list_location = "/home/fadamik/Documents/informative-nodes.txt"
+starting_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
+output_directory = "/scratch/GW/pool0/fadamik/ehealthforum/trac/relevance/"
+informative_nodes_list_location = "/home/fadamik/Documents/informative_nodes.txt"
+other_nodes_list_location = "/home/fadamik/Documents/other_nodes.txt"
 
 random.seed("12346")
 max_queries = 5
