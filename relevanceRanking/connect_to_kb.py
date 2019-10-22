@@ -10,11 +10,12 @@ uninformative_entity_types = {"phpr", "npop", 'bsoj', 'idcn', "sbst", "food", "e
 
 
 def connect_elasticsearch():
-    _es = Elasticsearch([{"host": "d5hadoop22.mpi-inf.mpg.de", "client.transport.sniff": True, "port": 9200}])
-    return _es
+    es = Elasticsearch([{"host": "d5hadoop22.mpi-inf.mpg.de", "client.transport.sniff": True, "port": 9200}])
+    return es
 
 
-def entity_info(es_object, index_name, entity):
+def _entity_info(es_object, index_name, entity):
+    print("Searching for entity: " + entity)
     res = es_object.search(index=index_name, size=1, search_type="dfs_query_then_fetch",
                            _source_includes=["human_readable", "types"], body={
             "filter": {"bool": {"must": [{"term": {"kb_id": entity}},
@@ -22,8 +23,8 @@ def entity_info(es_object, index_name, entity):
     return res["hits"]["hits"][0]["_source"]
 
 
-def is_informative_entity(es, entity=""):
-    ei = entity_info(es, "health-kb", entity)
+def _is_informative_entity(es, entity=""):
+    ei = _entity_info(es, "health-kb", entity)
 
     types = []
 
@@ -34,8 +35,10 @@ def is_informative_entity(es, entity=""):
         [x for x in types if x.startswith("disease_affecting") or x.startswith("symptoms")]) > 0
 
 
-es = connect_elasticsearch()
+def is_informative(entity, es):
+    return _is_informative_entity(es, entity)
+
 
 # is_informative_entity(es, "C0037199")
 
-print(is_informative_entity(es, "C0037199"))
+# print(_is_informative_entity(es, "C0037199"))
