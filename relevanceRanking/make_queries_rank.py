@@ -169,7 +169,6 @@ def calculate_relevance_scores(query: dict, json_contents: dict):
                 return None
 
     return scored_documents
-    # return {"documen1": 123, "document2": 456, "document3": 789}
 
 
 # Write out the relevance score to file.
