@@ -20,7 +20,12 @@ def _entity_info(es_object, index_name, entity):
                            _source_includes=["human_readable", "types"], body={
             "filter": {"bool": {"must": [{"term": {"kb_id": entity}},
                                          {"term": {"_type": "entity"}}]}}})
-    return res["hits"]["hits"][0]["_source"]
+
+    try:
+        result = res["hits"]["hits"][0]["_source"]
+        return result
+    except IndexError as ie:
+        raise ValueError("The entity was not found")
 
 
 def _is_informative_entity(es, entity=""):

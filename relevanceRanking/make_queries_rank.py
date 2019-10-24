@@ -18,22 +18,28 @@ import random
 from relevanceRanking.connect_to_kb import is_informative, connect_elasticsearch
 from elasticsearch import Elasticsearch
 
-# starting_directory = "D:/Downloads/json/ehealthforum/json-annotated/"
-# output_directory = "D:/downloads/json/ehealthforum/trac/relevance/"
-# informative_nodes_list_location = "D:/downloads/json/informative-entities.txt"
-# other_nodes_list_location = "D:/downloads/json/other-entities.txt"
+on_server = False
 
-starting_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
-output_directory = "/scratch/GW/pool0/fadamik/ehealthforum/trac/relevance/"
-informative_nodes_list_location = "/home/fadamik/Documents/informative_nodes.txt"
-other_nodes_list_location = "/home/fadamik/Documents/other_nodes.txt"
+if on_server:
+    starting_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
+    output_directory = "/scratch/GW/pool0/fadamik/ehealthforum/trac/relevance/"
+    informative_nodes_list_location = "/home/fadamik/Documents/informative_nodes.txt"
+    other_nodes_list_location = "/home/fadamik/Documents/other_nodes.txt"
+
+else:
+    starting_directory = "D:/Downloads/json/ehealthforum/json-annotated/"
+    output_directory = "D:/downloads/json/ehealthforum/trac/relevance/"
+    informative_nodes_list_location = "D:/downloads/json/informative-entities.txt"
+    other_nodes_list_location = "D:/downloads/json/other-entities.txt"
 
 random.seed("12346")
 max_queries = 5
+informative_entities = None
+other_entities = None
 
 
 # Load list of informative and non-informative (other) entities from the specified file.
-def load_entity_types() -> (set, set):
+def load_entity_types() -> None:
     i_entities = set()
     with open(informative_nodes_list_location, "r", encoding="utf8") as file:
         for line in file:
@@ -44,24 +50,35 @@ def load_entity_types() -> (set, set):
         for line in file:
             o_entities.add(line.replace("\n", ""))
 
-    return i_entities, o_entities
+    global informative_entities
+    informative_entities = i_entities
+    global other_entities
+    other_entities = o_entities
 
 
 # Update the list of informative entities with a new relevant entities.
 def update_informative_list(informative_entity: str) -> None:
+    informative_entities.add(informative_entity)
+
     with open(informative_nodes_list_location, "a", encoding="utf8") as file:
         file.write(informative_entity + "\n")
 
 
 # Update the list of non-informative entities with a new relevant entities.
 def update_other_list(other_entity: str) -> None:
+    other_entities.add(other_entity)
+
     with open(other_nodes_list_location, "a", encoding="utf8") as file:
         file.write(other_entity + "\n")
 
 
 def get_entity_code(entity: str) -> str:
     pipe_index = entity.find('|')
-    return entity[:pipe_index].replace('[', '')
+
+    if pipe_index == -1:
+        return entity
+    else:
+        return entity[:pipe_index].replace('[', '')
 
 
 # Extract data for a query from a given JSON file
@@ -76,15 +93,14 @@ def extract_query(json_contents: dict, es: Elasticsearch):
         for annotation in json_contents['replies'][0]['annotationsFull']:
             entity = get_entity_code(annotation)
 
+            # print(is_informative("C002344", es))
             if entity in informative_entities:
                 annotations.add(entity)
             elif entity not in other_entities and is_informative(entity, es):
                 annotations.add(entity)
                 update_informative_list(entity)
-                informative_entities.add(entity)
             elif entity not in other_entities:
                 update_other_list(entity)
-                other_entities.add(entity)
 
             query['annotations'] = annotations
 
@@ -211,14 +227,12 @@ def calculate_relevance_scores(query: dict, json_contents: dict, es: Elasticsear
                     elif entity not in other_entities and is_informative(entity, es):
                         number_medical_entities += 1
                         update_informative_list(entity)
-                        informative_entities.add(entity)
 
                         if entity in query['annotations']:
                             number_same_entities += 1
 
                     elif entity not in other_entities:
                         update_other_list(entity)
-                        other_entities.add(entity)
 
             document_score = scoring_function(is_doctor_reply, number_votes, number_medical_entities,
                                               number_same_entities, text_length, is_same_category, is_same_thread)
@@ -285,20 +299,25 @@ def loop_all_documents(queries: list, start_dir: str, es: Elasticsearch):
     write_scores_to_file(document_scores, output_directory)
 
 
-elas_search = connect_elasticsearch()
-informative_entities, other_entities = load_entity_types()
+def main():
+    elas_search = connect_elasticsearch()
+    load_entity_types()
 
-queries = make_queries(starting_directory, elas_search)
-with open(os.path.join(output_directory, "queries.json"), "w+", encoding="utf8") as output_file:
-    json_queries = []
-    for query in queries:
-        json_query = query
-        json_query['annotations'] = list(query['annotations'])
+    queries = make_queries(starting_directory, elas_search)
+    with open(os.path.join(output_directory, "queries.json"), "w+", encoding="utf8") as output_file:
+        json_queries = []
+        for query in queries:
+            json_query = query
+            json_query['annotations'] = list(query['annotations'])
 
-        json_queries.append(json_query)
+            json_queries.append(json_query)
 
-    json.dump(json_queries, output_file)
+        json.dump(json_queries, output_file)
 
-print("Wrote queries to file.")
+    print("Wrote queries to file.")
 
-loop_all_documents(queries, starting_directory, elas_search)
+    loop_all_documents(queries, starting_directory, elas_search)
+
+# main()
+
+get_entity_code("C002433")
