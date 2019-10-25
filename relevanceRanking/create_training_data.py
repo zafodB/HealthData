@@ -52,7 +52,7 @@ def read_score_file(filename: str) -> dict:
                 else:
                     scores[query_id][document_id] = document_score
 
-            if len(scores) > 10:
+            if len(scores) > 50:
                 break
 
     return scores
@@ -63,7 +63,6 @@ def make_queries(query_ids: list) -> dict:
     es = connect_elasticsearch()
 
     queries = {}
-
     for query_id in query_ids:
         folder = str(int(query_id, 10) // 1000)
         filename = query_id + ".json"
@@ -122,6 +121,8 @@ def find_documents(document_ids: set) -> dict:
     return documents
 
 
+# Create training data by reading the full query, extracting document features in respect to the query and reading
+# adding the BM25 score as the target.
 def produce_training_data(scores: dict, queries: dict, documents: dict) -> (list, list):
     training_data = []
     target_values = []
@@ -183,7 +184,8 @@ def produce_training_data(scores: dict, queries: dict, documents: dict) -> (list
     return training_data, target_values
 
 
-def write_training_data(output_path: str, data: list, targets: list) -> None:
+# Write training data and targets to files.
+def write_out_training_data(output_path: str, data: list, targets: list) -> None:
     with open(os.path.join(output_path, "training_data.json"), "w+", encoding="utf8") as training_file:
         json.dump(data, training_file)
     print("Wrote training data to file: " + os.path.join(output_path, "training_data.json"))
@@ -195,22 +197,17 @@ def write_training_data(output_path: str, data: list, targets: list) -> None:
 
 def main():
     bm25_scores = read_score_file(starting_file)
-
     relevanceRanking.make_queries_rank.load_entity_types()
-
     full_queries = make_queries(list(bm25_scores.keys()))
 
     document_ids = set()
-
     for query in bm25_scores:
         for doc_id in bm25_scores[query].keys():
             document_ids.add(doc_id)
 
     full_documents = find_documents(document_ids)
-
     training_data, target_values = produce_training_data(bm25_scores, full_queries, full_documents)
-
-    write_training_data(output_directory, training_data, target_values)
+    write_out_training_data(output_directory, training_data, target_values)
 
 
 main()
