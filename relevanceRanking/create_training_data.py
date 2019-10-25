@@ -4,20 +4,23 @@
 
 import os
 import json
+import platform
 
 import relevanceRanking.make_queries_rank
 from relevanceRanking.connect_to_kb import connect_elasticsearch
 
-on_server = False
+on_server = platform.system() == "Linux"
 
 if on_server:
-    starting_directory = "build-attempt/anserini"
+    starting_directory = "/home/fadamik/build-attempt/anserini"
     starting_file = "run.ef-all.bm25.reduced.10.txt"
     data_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
+    output_directory = "/home/fadamik/Documents/"
 else:
     starting_directory = "d:/downloads/json/ehealthforum/trac"
     starting_file = "run.ef-all.bm25.reduced.txt"
     data_directory = "d:/downloads/json/ehealthforum/json-annotated/"
+    output_directory = "d:/downloads/json/ehealthforum/trac"
 
 
 # Read file with BM25 scores and load it as dictionary.
@@ -180,6 +183,16 @@ def produce_training_data(scores: dict, queries: dict, documents: dict) -> (list
     return training_data, target_values
 
 
+def write_training_data(output_path: str, data: list, targets: list) -> None:
+    with open(os.path.join(output_path, "training_data.json"), "w+", encoding="utf8") as training_file:
+        json.dump(data, training_file)
+    print("Wrote training data to file: " + os.path.join(output_path, "training_data.json"))
+
+    with open(os.path.join(output_path, "targets.json"), "w+", encoding="utf8") as targets_file:
+        json.dump(targets, targets_file)
+    print("Wrote target values to file: " + os.path.join(output_path, "targets.json"))
+
+
 def main():
     bm25_scores = read_score_file(starting_file)
 
@@ -195,7 +208,9 @@ def main():
 
     full_documents = find_documents(document_ids)
 
-    print(produce_training_data(bm25_scores, full_queries, full_documents))
+    training_data, target_values = produce_training_data(bm25_scores, full_queries, full_documents)
+
+    write_training_data(output_directory, training_data, target_values)
 
 
 main()

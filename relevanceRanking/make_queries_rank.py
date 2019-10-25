@@ -319,5 +319,3 @@ def main():
     loop_all_documents(queries, starting_directory, elas_search)
 
 # main()
-
-get_entity_code("C002433")
