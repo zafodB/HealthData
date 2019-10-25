@@ -5,22 +5,18 @@
 import os
 import json
 import platform
+from relevanceRanking.entities_info import EntityInfo
+from relevanceRanking.make_queries_rank import make_queries, extract_query, get_entity_code
 
 on_server = platform.system() == "Linux"
 
 if on_server:
-    import make_queries_rank
-    from connect_to_kb import connect_elasticsearch
-
     starting_directory = "/home/fadamik/build-attempt/anserini"
     starting_file = "run.ef-all.bm25.reduced.10.txt"
     data_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
     output_directory = "/home/fadamik/Documents/"
+
 else:
-
-    import relevanceRanking.make_queries_rank
-    from relevanceRanking.connect_to_kb import connect_elasticsearch
-
     starting_directory = "d:/downloads/json/ehealthforum/trac"
     starting_file = "run.ef-all.bm25.reduced.txt"
     data_directory = "d:/downloads/json/ehealthforum/json-annotated/"
@@ -63,9 +59,7 @@ def read_score_file(filename: str) -> dict:
 
 
 # Load queries from JSON files based on their IDs and load them into a dictionary.
-def make_queries(query_ids: list) -> dict:
-    es = connect_elasticsearch()
-
+def make_queries(query_ids: list, ef: EntityInfo) -> dict:
     queries = {}
 
     for query_id in query_ids:
@@ -79,7 +73,7 @@ def make_queries(query_ids: list) -> dict:
             print("File not found:" + os.path.join(data_directory, folder, filename))
             continue
 
-        query = relevanceRanking.make_queries_rank.extract_query(contents, es)
+        query = extract_query(contents, ef)
         if query:
             queries[query_id] = query
 
@@ -115,7 +109,7 @@ def find_documents(document_ids: set) -> dict:
                     documents[doc_id]['annotations'] = []
                     for annotation in contents['replies'][reply_nr]['annotationsFull']:
                         (documents[doc_id]['annotations']
-                         .append(relevanceRanking.make_queries_rank.get_entity_code(annotation)))
+                         .append(get_entity_code(annotation)))
                 else:
                     documents[doc_id]['annotations'] = []
 
@@ -127,11 +121,9 @@ def find_documents(document_ids: set) -> dict:
 
 
 # Create training data by reading the full query, extracting document features in respect to the query and reading
-def produce_training_data(scores: dict, queries: dict, documents: dict) -> (list, list):
+def produce_training_data(scores: dict, queries: dict, documents: dict, ef: EntityInfo) -> (list, list):
     training_data = []
     target_values = []
-
-    es = connect_elasticsearch()
 
     for query_id in scores:
         for document_id in scores[query_id]:
@@ -158,21 +150,21 @@ def produce_training_data(scores: dict, queries: dict, documents: dict) -> (list
 
             for entity in annotations:
                 try:
-                    if entity in relevanceRanking.make_queries_rank.informative_entities:
+                    if entity in ef.informative_entities:
                         number_medical_entities += 1
                         if entity in query['annotations']:
                             number_same_entities += 1
-                    elif (entity not in relevanceRanking.make_queries_rank.other_entities and
-                          relevanceRanking.connect_to_kb.is_informative(entity, es)):
+                    elif (entity not in ef.other_entities and
+                          ef.is_informative_entity(entity)):
 
                         number_medical_entities += 1
-                        relevanceRanking.make_queries_rank.update_informative_list(entity)
+                        ef.update_informative_list(entity)
 
                         if entity in query['annotations']:
                             number_same_entities += 1
 
-                    elif entity not in relevanceRanking.make_queries_rank.other_entities:
-                        relevanceRanking.make_queries_rank.update_other_list(entity)
+                    elif entity not in ef.other_entities:
+                        ef.update_other_list(entity)
 
                 except ValueError as ve:
                     print("The entity " + entity + " could not be evaluated. Skipping...")
@@ -199,9 +191,11 @@ def write_out_training_data(output_path: str, data: list, targets: list) -> None
 
 
 def main():
+    ef = EntityInfo()
+
     bm25_scores = read_score_file(starting_file)
-    relevanceRanking.make_queries_rank.load_entity_types()
-    full_queries = make_queries(list(bm25_scores.keys()))
+
+    full_queries = make_queries(list(bm25_scores.keys()), ef)
 
     document_ids = set()
     for query in bm25_scores:
@@ -209,7 +203,7 @@ def main():
             document_ids.add(doc_id)
 
     full_documents = find_documents(document_ids)
-    training_data, target_values = produce_training_data(bm25_scores, full_queries, full_documents)
+    training_data, target_values = produce_training_data(bm25_scores, full_queries, full_documents, ef)
     write_out_training_data(output_directory, training_data, target_values)
 
 
