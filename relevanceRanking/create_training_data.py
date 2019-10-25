@@ -6,17 +6,21 @@ import os
 import json
 import platform
 
-import relevanceRanking.make_queries_rank
-from relevanceRanking.connect_to_kb import connect_elasticsearch
-
 on_server = platform.system() == "Linux"
 
 if on_server:
+    import make_queries_rank
+    from connect_to_kb import connect_elasticsearch
+
     starting_directory = "/home/fadamik/build-attempt/anserini"
     starting_file = "run.ef-all.bm25.reduced.10.txt"
     data_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
     output_directory = "/home/fadamik/Documents/"
 else:
+
+    import relevanceRanking.make_queries_rank
+    from relevanceRanking.connect_to_kb import connect_elasticsearch
+
     starting_directory = "d:/downloads/json/ehealthforum/trac"
     starting_file = "run.ef-all.bm25.reduced.txt"
     data_directory = "d:/downloads/json/ehealthforum/json-annotated/"
@@ -52,7 +56,7 @@ def read_score_file(filename: str) -> dict:
                 else:
                     scores[query_id][document_id] = document_score
 
-            if len(scores) > 50:
+            if len(scores) > 10:
                 break
 
     return scores
@@ -63,6 +67,7 @@ def make_queries(query_ids: list) -> dict:
     es = connect_elasticsearch()
 
     queries = {}
+
     for query_id in query_ids:
         folder = str(int(query_id, 10) // 1000)
         filename = query_id + ".json"
@@ -122,7 +127,6 @@ def find_documents(document_ids: set) -> dict:
 
 
 # Create training data by reading the full query, extracting document features in respect to the query and reading
-# adding the BM25 score as the target.
 def produce_training_data(scores: dict, queries: dict, documents: dict) -> (list, list):
     training_data = []
     target_values = []
@@ -184,7 +188,6 @@ def produce_training_data(scores: dict, queries: dict, documents: dict) -> (list
     return training_data, target_values
 
 
-# Write training data and targets to files.
 def write_out_training_data(output_path: str, data: list, targets: list) -> None:
     with open(os.path.join(output_path, "training_data.json"), "w+", encoding="utf8") as training_file:
         json.dump(data, training_file)

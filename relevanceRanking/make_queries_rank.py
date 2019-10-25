@@ -15,18 +15,22 @@ import os
 import json
 import traceback
 import random
-from relevanceRanking.connect_to_kb import is_informative, connect_elasticsearch
+import platform
 from elasticsearch import Elasticsearch
 
-on_server = False
+on_server = platform.system() == "Linux"
 
 if on_server:
+    from connect_to_kb import is_informative, connect_elasticsearch
+
     starting_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
     output_directory = "/scratch/GW/pool0/fadamik/ehealthforum/trac/relevance/"
     informative_nodes_list_location = "/home/fadamik/Documents/informative_nodes.txt"
     other_nodes_list_location = "/home/fadamik/Documents/other_nodes.txt"
 
 else:
+    from relevanceRanking.connect_to_kb import is_informative, connect_elasticsearch
+
     starting_directory = "D:/Downloads/json/ehealthforum/json-annotated/"
     output_directory = "D:/downloads/json/ehealthforum/trac/relevance/"
     informative_nodes_list_location = "D:/downloads/json/informative-entities.txt"
