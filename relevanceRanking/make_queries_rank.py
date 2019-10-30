@@ -272,4 +272,4 @@ def main():
 
     loop_all_documents(queries, starting_directory, entity_info)
 
-main()
+# main()
