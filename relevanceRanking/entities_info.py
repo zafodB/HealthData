@@ -16,10 +16,8 @@ def get_entity_code(entity: str) -> str:
 
 
 class EntityInfo:
-    __starting_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
-    __output_directory = "/scratch/GW/pool0/fadamik/ehealthforum/trac/relevance/"
-    __informative_nodes_list_location = "/home/fadamik/Documents/informative_nodes.txt"
-    __other_nodes_list_location = "/home/fadamik/Documents/other_nodes.txt"
+    __informative_nodes_list_location = None
+    __other_nodes_list_location = None
 
     __elastic_search = None
 
@@ -30,14 +28,10 @@ class EntityInfo:
         on_server = platform.system() == "Linux"
 
         if on_server:
-            self.__starting_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
-            self.__output_directory = "/scratch/GW/pool0/fadamik/ehealthforum/trac/relevance/"
             self.__informative_nodes_list_location = "/home/fadamik/Documents/informative_nodes.txt"
             self.__other_nodes_list_location = "/home/fadamik/Documents/other_nodes.txt"
 
         else:
-            self.__starting_directory = "D:/Downloads/json/ehealthforum/json-annotated/"
-            self.__output_directory = "D:/downloads/json/ehealthforum/trac/relevance/"
             self.__informative_nodes_list_location = "D:/downloads/json/informative-entities.txt"
             self.__other_nodes_list_location = "D:/downloads/json/other-entities.txt"
 
@@ -56,6 +50,7 @@ class EntityInfo:
             for line in file:
                 o_entities.add(line.replace("\n", ""))
 
+        print("Loaded existing entity information files")
         self.informative_entities = i_entities
         self.other_entities = o_entities
 
@@ -74,4 +69,19 @@ class EntityInfo:
             file.write(other_entity + "\n")
 
     def is_informative_entity(self, entity: str) -> bool:
-        return is_informative(entity, self.__elastic_search)
+        informative = None
+
+        if entity in self.informative_entities:
+            informative = True
+        if entity in self.other_entities:
+            informative = False
+
+        if not informative:
+            if is_informative(entity, self.__elastic_search):
+                self.update_informative_list(entity)
+                informative = True
+            else:
+                self.update_other_list(entity)
+                informative = False
+
+        return informative

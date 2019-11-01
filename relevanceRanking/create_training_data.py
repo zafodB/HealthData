@@ -150,21 +150,11 @@ def produce_training_data(scores: dict, queries: dict, documents: dict, ef: Enti
 
             for entity in annotations:
                 try:
-                    if entity in ef.informative_entities:
+                    if ef.is_informative_entity(entity):
                         number_medical_entities += 1
-                        if entity in query['annotations']:
-                            number_same_entities += 1
-                    elif (entity not in ef.other_entities and
-                          ef.is_informative_entity(entity)):
-
-                        number_medical_entities += 1
-                        ef.update_informative_list(entity)
 
                         if entity in query['annotations']:
                             number_same_entities += 1
-
-                    elif entity not in ef.other_entities:
-                        ef.update_other_list(entity)
 
                 except ValueError as ve:
                     print("The entity " + entity + " could not be evaluated. Skipping...")
