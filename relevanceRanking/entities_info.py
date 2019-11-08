@@ -3,7 +3,8 @@
 '''
 
 import platform
-from relevanceRanking.connect_to_kb import connect_elasticsearch, is_informative
+import json
+from relevanceRanking.connect_to_kb import connect_elasticsearch, is_informative, get_entity_types
 
 
 def get_entity_code(entity: str) -> str:
@@ -23,17 +24,20 @@ class EntityInfo:
 
     informative_entities = None
     other_entities = None
+    entity_types = None
 
     def __init__(self):
         on_server = platform.system() == "Linux"
 
         if on_server:
             self.__informative_nodes_list_location = "/home/fadamik/Documents/informative_nodes.txt"
+            self.__informative_nodes_categories_location = "/home/fadamik/Documents/informative_nodes_categories.json"
             self.__other_nodes_list_location = "/home/fadamik/Documents/other_nodes.txt"
 
         else:
-            self.__informative_nodes_list_location = "D:/downloads/json/informative-entities.txt"
-            self.__other_nodes_list_location = "D:/downloads/json/other-entities.txt"
+            self.__informative_nodes_list_location = "D:/downloads/json/informative_nodes.txt"
+            self.__informative_nodes_categories_location = "d:/downloads/json/informative_nodes_categories.json"
+            self.__other_nodes_list_location = "D:/downloads/json/other_nodes.txt"
 
         self.__elastic_search = connect_elasticsearch()
         self.__load_entity_types()
@@ -50,9 +54,14 @@ class EntityInfo:
             for line in file:
                 o_entities.add(line.replace("\n", ""))
 
+        # entity_t = {}
+        with open(self.__informative_nodes_categories_location, "r", encoding="utf8") as file:
+             entity_t = json.load(file)
+
         print("Loaded existing entity information files")
         self.informative_entities = i_entities
         self.other_entities = o_entities
+        self.entity_types = entity_t
 
     # Update the list of informative entities with a new relevant entities.
     def update_informative_list(self, informative_entity: str) -> None:
@@ -68,6 +77,19 @@ class EntityInfo:
         with open(self.__other_nodes_list_location, "a", encoding="utf8") as file:
             file.write(other_entity + "\n")
 
+    def update_entity_types(self, entity: str, types: set) -> None:
+        if entity not in self.entity_types:
+            self.entity_types[entity] = types
+
+    def write_out_entity_types(self):
+        entity_t = {}
+
+        for entity in self.entity_types:
+            entity_t[entity] = list(self.entity_types[entity])
+
+        with open(self.__informative_nodes_categories_location, "w+", encoding="utf8") as file:
+            json.dump(entity_t, file)
+
     def is_informative_entity(self, entity: str) -> bool:
         informative = None
 
@@ -76,12 +98,20 @@ class EntityInfo:
         if entity in self.other_entities:
             informative = False
 
-        if not informative:
-            if is_informative(entity, self.__elastic_search):
+        if informative is None:
+            types = get_entity_types(entity, self.__elastic_search)
+
+            if len(types) > 0:
                 self.update_informative_list(entity)
+                self.update_entity_types(entity, types)
                 informative = True
             else:
                 self.update_other_list(entity)
                 informative = False
 
         return informative
+
+    # TO BE REMOVED
+
+    def get_es(self):
+        return self.__elastic_search
