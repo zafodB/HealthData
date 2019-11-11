@@ -4,9 +4,9 @@
 
 from elasticsearch import Elasticsearch
 
-_informative_entity_types = {"dsyn", "patf", "sosy", "dora", "fndg", "menp", "chem", "orch", "horm", "phsu", "medd",
-                             "bhvr", "diap", 'bacs', 'chem', 'enzy', "inpo", "elii"}
-_uninformative_entity_types = {"phpr", "npop", 'bsoj', 'idcn', "sbst", "food", "evnt", "geoa", "idcn"}
+informative_entity_types = {"dsyn", "patf", "sosy", "dora", "fndg", "menp", "chem", "orch", "horm", "phsu", "medd",
+                            "bhvr", "diap", "bacs", "enzy", "inpo", "elii"}
+uninformative_entity_types = {"phpr", "npop", 'bsoj', 'idcn', "sbst", "food", "evnt", "geoa", "idcn"}
 
 
 def connect_elasticsearch():
@@ -36,8 +36,8 @@ def _is_informative_entity(es, entity=""):
     if "types" in ei.keys():
         types = [str(x) for x in ei["types"]]
 
-    return len(set(types).intersection(_informative_entity_types)) > 0
-           # or len([x for x in types if x.startswith("disease_affecting") or x.startswith("symptoms")]) > 0
+    return len(set(types).intersection(informative_entity_types)) > 0
+    # or len([x for x in types if x.startswith("disease_affecting") or x.startswith("symptoms")]) > 0
 
 
 def is_informative(entity, es):
@@ -51,8 +51,7 @@ def get_entity_types(entity, es):
     if "types" in ei.keys():
         types = [str(x) for x in ei["types"]]
 
-    return set(types).intersection(_informative_entity_types)
-
+    return set(types).intersection(informative_entity_types)
 
 # es = connect_elasticsearch()
 # with open("d:/downloads/json/informative_nodes.txt") as file:

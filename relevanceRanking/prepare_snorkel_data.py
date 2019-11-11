@@ -7,7 +7,10 @@ import json
 import platform
 from relevanceRanking.entities_info import EntityInfo
 from relevanceRanking.make_queries_rank import make_queries, extract_query, get_entity_code
+from relevanceRanking.connect_to_kb import informative_entity_types
 
+all_types = "typ_dsyn" + "\t" + "typ_patf" + "\t" + "typ_sosy" + "\t" + "typ_dora" + "\t" + "typ_fndg" + "\t" + "typ_menp" + "\t" + "typ_chem" + "\t" + "typ_orch" + "\t" + "typ_horm" + "\t" + "typ_phsu" + "\t" + "typ_medd" + "\t" + "typ_bhvr" + "\t" + "typ_diap" + "\t" + "typ_bacs" + "\t" + "typ_enzy" + "\t" + "typ_inpo" + "\t" + "typ_elii"
+all_types_d = "d_typ_dsyn" + "\t" + "d_typ_patf" + "\t" + "d_typ_sosy" + "\t" + "d_typ_dora" + "\t" + "d_typ_fndg" + "\t" + "d_typ_menp" + "\t" + "d_typ_chem" + "\t" + "d_typ_orch" + "\t" + "d_typ_horm" + "\t" + "d_typ_phsu" + "\t" + "d_typ_medd" + "\t" + "d_typ_bhvr" + "\t" + "d_typ_diap" + "\t" + "d_typ_bacs" + "\t" + "d_typ_enzy" + "\t" + "d_typ_inpo" + "\t" + "d_typ_elii"
 on_server = platform.system() == "Linux"
 
 if on_server:
@@ -25,8 +28,8 @@ else:
 
 # Read file with BM25 scores and load it as dictionary.
 def read_score_file(filename: str) -> dict:
-    NUMBER_QUERIES = 10
-    NUMBER_DOCS_PER_QUERY = 20
+    NUMBER_QUERIES = 500
+    NUMBER_DOCS_PER_QUERY = 5
 
     scores = {}
 
@@ -41,9 +44,9 @@ def read_score_file(filename: str) -> dict:
 
             if NUMBER_DOCS_PER_QUERY > doc_rank:
                 relevant = True
-            elif NUMBER_DOCS_PER_QUERY <= doc_rank <= 100-NUMBER_DOCS_PER_QUERY:
+            elif NUMBER_DOCS_PER_QUERY <= doc_rank <= 100 - NUMBER_DOCS_PER_QUERY:
                 continue
-            elif doc_rank > 100-NUMBER_DOCS_PER_QUERY:
+            elif doc_rank > 100 - NUMBER_DOCS_PER_QUERY:
                 relevant = False
 
             if query_id not in scores:
@@ -134,12 +137,26 @@ def produce_training_data(scores: dict, queries: dict, documents: dict, ef: Enti
                 continue
 
             query_category = query['category']
-            query_text = query['text']
             query_thread = query['threadId']
+            query_text = query['text']
+            query_annotation_count = ""
+            for index, count in enumerate(make_annotation_counts(query['annotations'], ef)):
+                if index > 0:
+                    query_annotation_count = query_annotation_count + '\t'
 
-            query_annotations = ';'
-            for annotation in query['annotations']:
-                query_annotations += annotation + ';'
+                query_annotation_count = query_annotation_count + str(count)
+
+            query_annotations = ''
+            for index, annotation in enumerate(query['annotations']):
+                if index > 0:
+                    query_annotations += ";"
+                query_annotations += annotation
+
+            if query_annotations == '':
+                query_annotations = None
+
+            document_category = document['category']
+            document_thread = document['threadId']
 
             document_user_status = document['userStatus']
             document_number_votes_t = document['votes-t']
@@ -147,22 +164,68 @@ def produce_training_data(scores: dict, queries: dict, documents: dict, ef: Enti
             document_number_votes_h = document['votes-h']
             document_text = document['document-text']
             document_is_doctor_reply = document['mdReply']
-            document_annotations = set(document['annotations'])
 
-            # training_item = [query[]is_doctor_reply, number_votes_h, number_votes_s, number_votes_t]
+            document_annotation_count = ""
+            for index, count in enumerate(make_annotation_counts(document['annotations'], ef)):
+                if index > 0:
+                    document_annotation_count = document_annotation_count + '\t'
 
-            # training_data.append(training_item)
+                document_annotation_count = document_annotation_count + str(count)
+
+            document_annotations = ''
+            for index, annotation in enumerate(document['annotations']):
+                if index > 0:
+                    document_annotations += ";"
+                document_annotations += annotation
+
+            training_item = [query_category, query_thread, query_text, query_annotations, query_annotation_count,
+                             document_category, document_thread, document_text, document_is_doctor_reply,
+                             document_number_votes_h, document_number_votes_s, document_number_votes_t,
+                             document_user_status, document_annotations, document_annotation_count,
+                             scores[query_id][document_id]['relevant'], scores[query_id][document_id]['score']]
+
+            training_data.append(training_item)
 
     return training_data
 
 
-def write_out_training_data(output_path: str, data: list, targets: list) -> None:
+def make_annotation_counts(annotations: list, entity_info: EntityInfo) -> list:
+    types_counts = {}
+
+    for entity in informative_entity_types:
+        types_counts[entity] = 0
+
+    for annotation in annotations:
+        types = entity_info.get_entity_types(annotation)
+
+        for type in types:
+            types_counts[type] += 1
+
+    output_counts = []
+    for entity in informative_entity_types:
+        output_counts.append(types_counts[entity])
+
+    return output_counts
+
+
+def write_out_training_data(output_path: str, data: list) -> None:
     filename = "training_data_snorkel.txt"
     with open(os.path.join(output_path, filename), "w+", encoding="utf8") as training_file:
-        for index, document in enumerate(data):
-            # for
-            pass
-        json.dump(data, training_file)
+
+        training_file.write(
+            "query_category" + "\t" + "query_thread" + "\t" + "query_text" + "\t" + "query_annotations" + "\t" + all_types + "\t" +
+            "document_category" + "\t" + "document_thread" + "\t" + "document_text" + "\t" + "document_is_doctor_reply" + "\t" +
+            "document_number_votes_h" + "\t" + "document_number_votes_s" + "\t" + "document_number_votes_t" + "\t" +
+            "document_user_status" + "\t" + "document_annotations" + "\t" + all_types_d + "\t" +
+            "bm25_relevant" + "\t" + "bm25_score" + "\n")
+
+        for row in data:
+            for index, feature in enumerate(row):
+                if index > 0:
+                    training_file.write('\t')
+                training_file.write(str(feature))
+
+            training_file.write('\n')
 
     print("Wrote training data to file: " + os.path.join(output_path, filename))
 
@@ -185,7 +248,7 @@ def main():
 
     full_documents = find_documents(document_ids)
     training_data = produce_training_data(bm25_scores, full_queries, full_documents, ef)
-    # write_out_training_data(output_directory, training_data, target_values)
+    write_out_training_data(output_directory, training_data)
 
 
 main()

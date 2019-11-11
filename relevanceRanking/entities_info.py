@@ -111,7 +111,12 @@ class EntityInfo:
 
         return informative
 
-    # TO BE REMOVED
+    def get_entity_types(self, entity: str) -> list:
+        if entity not in self.entity_types:
+            self.is_informative_entity(entity)
 
-    def get_es(self):
-        return self.__elastic_search
+        # TODO Should be rewritten to handle unknown entity properly
+        if entity in self.entity_types:
+            return self.entity_types[entity]
+        else:
+            return ""

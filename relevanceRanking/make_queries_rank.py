@@ -43,26 +43,21 @@ def extract_query(json_contents: dict, ef: EntityInfo):
 
     query = {'category': json_contents['commonCategory']}
 
-    annotations = set()
+    annotations = []
     if 'annotationsFull' in json_contents['replies'][0]:
         for annotation in json_contents['replies'][0]['annotationsFull']:
             entity = get_entity_code(annotation)
 
             # print(is_informative("C002344", es))
-            if entity in ef.informative_entities:
-                annotations.add(entity)
-            elif entity not in ef.other_entities and ef.is_informative_entity(entity):
-                annotations.add(entity)
-                ef.update_informative_list(entity)
-            elif entity not in ef.other_entities:
-                ef.update_other_list(entity)
+            if ef.is_informative_entity(entity):
+                annotations.append(entity)
 
             query['annotations'] = annotations
 
     post_text = json_contents['replies'][0]['postText']
     length = len(post_text)
     query['length'] = length
-    query['text'] = post_text
+    query['text'] = post_text.replace('\t', '')
 
     query['threadId'] = json_contents['threadId']
 
