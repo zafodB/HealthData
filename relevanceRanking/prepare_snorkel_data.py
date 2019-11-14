@@ -5,6 +5,7 @@
 import os
 import json
 import platform
+import random
 from relevanceRanking.entities_info import EntityInfo
 from relevanceRanking.make_queries_rank import make_queries, extract_query, get_entity_code
 from relevanceRanking.connect_to_kb import informative_entity_types
@@ -13,23 +14,42 @@ all_types = "typ_dsyn" + "\t" + "typ_patf" + "\t" + "typ_sosy" + "\t" + "typ_dor
 all_types_d = "d_typ_dsyn" + "\t" + "d_typ_patf" + "\t" + "d_typ_sosy" + "\t" + "d_typ_dora" + "\t" + "d_typ_fndg" + "\t" + "d_typ_menp" + "\t" + "d_typ_chem" + "\t" + "d_typ_orch" + "\t" + "d_typ_horm" + "\t" + "d_typ_phsu" + "\t" + "d_typ_medd" + "\t" + "d_typ_bhvr" + "\t" + "d_typ_diap" + "\t" + "d_typ_bacs" + "\t" + "d_typ_enzy" + "\t" + "d_typ_inpo" + "\t" + "d_typ_elii"
 on_server = platform.system() == "Linux"
 
+# Determine file location for running on server and runnning locally
 if on_server:
     starting_directory = "/home/fadamik/build-attempt/anserini"
     starting_file = "run.ef-all.bm25.reduced.10.txt"
     data_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
     output_directory = "/home/fadamik/Documents/"
+    output_filename = "training_data_snorkel_10k_full.txt"
+    query_numbers_name = 'query_numbers.json'
 
 else:
     starting_directory = "d:/downloads/json/ehealthforum/trac"
     starting_file = "run.ef-all.bm25.reduced.txt"
     data_directory = "d:/downloads/json/ehealthforum/json-annotated/"
     output_directory = "d:/downloads/json/ehealthforum/trac"
+    query_numbers_name = 'query_numbers.json'
+
+    # starting_directory = "m:/home/fadamik/build-attempt/anserini"
+    # starting_file = "run.ef-all.bm25.reduced.txt"
+    # data_directory = "d:/downloads/json/ehealthforum/json-annotated/"
+    # output_directory = "d:/downloads/json/ehealthforum/trac"
+    # output_filename = "training_data_snorkel_10k_full.txt"
+    # query_numbers_name = 'query_numbers.json'
 
 
 # Read file with BM25 scores and load it as dictionary.
 def read_score_file(filename: str) -> dict:
-    NUMBER_QUERIES = 500
-    NUMBER_DOCS_PER_QUERY = 5
+    NUMBER_QUERIES = 10000
+    NUMBER_DOCS_PER_QUERY = 10
+    NUMBER_HITS_IN_FILE = 1000
+
+    random.seed(1668)
+
+    with open(os.path.join(starting_directory, query_numbers_name), 'r', encoding='utf8') as file:
+        query_numbers = json.load(file)
+
+    selected_queries = random.sample(query_numbers_name, NUMBER_QUERIES)
 
     scores = {}
 
@@ -38,15 +58,18 @@ def read_score_file(filename: str) -> dict:
 
             line_contents = line.split(" ")
             query_id = line_contents[0]
+            if query_id not in selected_queries:
+                continue
+
             document_id = line_contents[2]
             doc_rank = int(line_contents[3], base=10)
             document_score = line_contents[4]
 
             if NUMBER_DOCS_PER_QUERY > doc_rank:
                 relevant = True
-            elif NUMBER_DOCS_PER_QUERY <= doc_rank <= 100 - NUMBER_DOCS_PER_QUERY:
+            elif NUMBER_DOCS_PER_QUERY <= doc_rank <= NUMBER_HITS_IN_FILE - NUMBER_DOCS_PER_QUERY:
                 continue
-            elif doc_rank > 100 - NUMBER_DOCS_PER_QUERY:
+            elif doc_rank > NUMBER_HITS_IN_FILE - NUMBER_DOCS_PER_QUERY:
                 relevant = False
 
             if query_id not in scores:
@@ -209,8 +232,7 @@ def make_annotation_counts(annotations: list, entity_info: EntityInfo) -> list:
 
 
 def write_out_training_data(output_path: str, data: list) -> None:
-    filename = "training_data_snorkel.txt"
-    with open(os.path.join(output_path, filename), "w+", encoding="utf8") as training_file:
+    with open(os.path.join(output_path, output_filename), "w+", encoding="utf8") as training_file:
 
         training_file.write(
             "query_category" + "\t" + "query_thread" + "\t" + "query_text" + "\t" + "query_annotations" + "\t" + all_types + "\t" +
