@@ -24,23 +24,24 @@ if on_server:
     query_numbers_name = 'query_numbers.json'
 
 else:
-    starting_directory = "d:/downloads/json/ehealthforum/trac"
-    starting_file = "run.ef-all.bm25.reduced.txt"
-    data_directory = "d:/downloads/json/ehealthforum/json-annotated/"
-    output_directory = "d:/downloads/json/ehealthforum/trac"
-    query_numbers_name = 'query_numbers.json'
-
-    # starting_directory = "m:/home/fadamik/build-attempt/anserini"
+    # starting_directory = "d:/downloads/json/ehealthforum/trac"
     # starting_file = "run.ef-all.bm25.reduced.txt"
     # data_directory = "d:/downloads/json/ehealthforum/json-annotated/"
     # output_directory = "d:/downloads/json/ehealthforum/trac"
     # output_filename = "training_data_snorkel_10k_full.txt"
     # query_numbers_name = 'query_numbers.json'
 
+    starting_directory = "m:/build-attempt/anserini"
+    starting_file = "run.ef-all.bm25.reduced.txt"
+    data_directory = "n:/ehealthforum/json-annotated/"
+    output_directory = "d:/downloads/json/ehealthforum/trac"
+    output_filename = "training_data_snorkel_10k_full_rand.txt"
+    query_numbers_name = 'query_numbers.json'
+
 
 # Read file with BM25 scores and load it as dictionary.
 def read_score_file(filename: str) -> dict:
-    NUMBER_QUERIES = 10000
+    NUMBER_QUERIES = 50
     NUMBER_DOCS_PER_QUERY = 10
     NUMBER_HITS_IN_FILE = 1000
 
@@ -49,7 +50,7 @@ def read_score_file(filename: str) -> dict:
     with open(os.path.join(starting_directory, query_numbers_name), 'r', encoding='utf8') as file:
         query_numbers = json.load(file)
 
-    selected_queries = random.sample(query_numbers_name, NUMBER_QUERIES)
+    selected_queries = random.sample(query_numbers, NUMBER_QUERIES)
 
     scores = {}
 
@@ -249,7 +250,7 @@ def write_out_training_data(output_path: str, data: list) -> None:
 
             training_file.write('\n')
 
-    print("Wrote training data to file: " + os.path.join(output_path, filename))
+    print("Wrote training data to file: " + os.path.join(output_path, output_filename   ))
 
     # with open(os.path.join(output_path, "targets.json"), "w+", encoding="utf8") as targets_file:
     #     json.dump(targets, targets_file)

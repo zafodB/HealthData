@@ -10,18 +10,26 @@
 """
 
 import os
+import platform
 import json
 import traceback
 import re
 
-starting_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated2/"
-# starting_directory = "D:/Downloads/json/ehealthforum/json-sorted"
-output_directory_data = "/scratch/GW/pool0/fadamik/ehealthforum/trac/data"
-# output_directory_data = "D:/Downloads/json/ehealthforum/"
-output_directory_maps = "/scratch/GW/pool0/fadamik/ehealthforum/trac/maps"
-# output_directory_maps = "D:/Downloads/json/ehealthforum/trac/maps"
-output_directory_queries = "/scratch/GW/pool0/fadamik/ehealthforum/trac/queries"
-# output_directory_queries = "D:/Downloads/json/ehealthforum/trac/queries"
+on_server = platform.system() == "Linux"
+
+# Determine file location for running on server and runnning locally
+if on_server:
+    starting_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
+    output_directory_data = "/scratch/GW/pool0/fadamik/ehealthforum/trac/data"
+    output_directory_maps = "/scratch/GW/pool0/fadamik/ehealthforum/trac/maps"
+    output_directory_queries = "/scratch/GW/pool0/fadamik/ehealthforum/trac/queries"
+
+else:
+    starting_directory = "D:/Downloads/json/ehealthforum/json-annotated"
+    output_directory_data = "D:/Downloads/json/ehealthforum/trac/data"
+    output_directory_maps = "D:/Downloads/json/ehealthforum/trac/maps"
+    output_directory_queries = "D:/Downloads/json/ehealthforum/trac/queries"
+
 
 processed_files = 0
 error_files = 0
@@ -31,6 +39,8 @@ data_file = open(os.path.join(output_directory_data, "data1.trac"), "w+", encodi
 maps_file_2 = open(os.path.join(output_directory_maps, "topic-map2.txt"), "w+", encoding="utf8")
 maps_file_3 = open(os.path.join(output_directory_maps, "topic-map3.txt"), "w+", encoding="utf8")
 query_file = open(os.path.join(output_directory_queries, "topic1.txt"), "w+", encoding="utf8")
+
+pattern = re.compile('C[0-9]{3,}')
 
 for root, dirs, files in os.walk(starting_directory):
     for file_name in files:
@@ -42,7 +52,14 @@ for root, dirs, files in os.walk(starting_directory):
             query = content['replies'][0]
             topic_no = str(content['threadId'])
 
-            query_text = query['postText']
+            entities_string = ""
+
+            if 'annotationsFull' in query:
+                for annotation in query['annotationsFull']:
+                    entity = re.search(pattern, annotation)
+                    entities_string += ' ' + entity.group()
+
+            query_text = content['title'] + entities_string
 
             word_count = len(re.findall(r'\w+', query_text))
 

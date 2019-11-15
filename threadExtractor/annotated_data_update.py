@@ -100,7 +100,7 @@ def update_content(existing_content: dict, new_content: dict) -> dict:
                 existing = existing_reply['postText'].replace(' ', '').replace(',', '').replace('.', '')
                 original = original_text[index].replace(' ', '').replace(',', '').replace('.', '')
                 if existing == original:
-                    pattern = re.compile("\[\[C[0-9]+\|\S*\]\]")
+                    pattern = re.compile("\[\[C[0-9]+\|[\w*\s*]{1,}\]\]")
                     annotations = re.findall(pattern, text)
 
                     existing_content['replies'][reply_index]['annotatedText'] = text
