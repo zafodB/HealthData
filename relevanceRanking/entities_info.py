@@ -5,9 +5,13 @@
 import platform
 import json
 from relevanceRanking.connect_to_kb import connect_elasticsearch, is_informative, get_entity_types
+import re
 
 
 def get_entity_code(entity: str) -> str:
+    if type(entity) is re.Match:
+        entity = entity.group()
+
     pipe_index = entity.find('|')
 
     if pipe_index == -1:

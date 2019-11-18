@@ -28,7 +28,7 @@ for root, dir, files in os.walk(starting_directory):
             updated_file = False
 
             for reply in contents['replies']:
-                pattern = re.compile("\[\[C[0-9]+\|[\w*\s*]{1,}\]\]")
+                pattern = re.compile("\[\[C[0-9]+\|[\w\s]{1,}\]\]")
                 if 'annotatedText' in reply:
                     annotations = re.findall(pattern, reply['annotatedText'])
 

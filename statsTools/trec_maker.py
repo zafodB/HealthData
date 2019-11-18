@@ -14,6 +14,7 @@ import platform
 import json
 import traceback
 import re
+from relevanceRanking.entities_info import EntityInfo, get_entity_code
 
 on_server = platform.system() == "Linux"
 
@@ -34,13 +35,17 @@ else:
 processed_files = 0
 error_files = 0
 documents_written = 0
+queries_written = 0
 
 data_file = open(os.path.join(output_directory_data, "data1.trac"), "w+", encoding="utf8")
 maps_file_2 = open(os.path.join(output_directory_maps, "topic-map2.txt"), "w+", encoding="utf8")
 maps_file_3 = open(os.path.join(output_directory_maps, "topic-map3.txt"), "w+", encoding="utf8")
-query_file = open(os.path.join(output_directory_queries, "topic1.txt"), "w+", encoding="utf8")
+query_file = open(os.path.join(output_directory_queries, "queries0.txt"), "w+", encoding="utf8")
 
 pattern = re.compile('C[0-9]{3,}')
+pattern_long = re.compile("\[\[C[0-9]+\|[\w\s]{1,}\]\]")
+
+ef = EntityInfo()
 
 for root, dirs, files in os.walk(starting_directory):
     for file_name in files:
@@ -57,17 +62,27 @@ for root, dirs, files in os.walk(starting_directory):
             if 'annotationsFull' in query:
                 for annotation in query['annotationsFull']:
                     entity = re.search(pattern, annotation)
-                    entities_string += ' ' + entity.group()
+
+                    if ef.is_informative_entity(entity.group()):
+                        entities_string += ' ' + entity.group()
 
             query_text = content['title'] + entities_string
 
             word_count = len(re.findall(r'\w+', query_text))
 
             if word_count > 1020:
+                print("too many words")
                 continue
 
             query_file.write(
                 "<top>\n\n<num> Number: " + topic_no + "\n<title>\n" + query_text + "\n\n<desc> Description:\nNA\n\n<narr> Narrative:\nNA\n\n</top>\n")
+            print("Wrote query")
+            queries_written += 1
+
+            if queries_written % 3600 == 0:
+                query_file.close()
+                file_number = queries_written % 3600
+                query_file = open(os.path.join(output_directory_queries, "queries" + str(file_number) + ".txt"), "w+", encoding="utf8")
 
             maps_file_2.write(topic_no)
             maps_file_3.write(topic_no)
@@ -78,9 +93,16 @@ for root, dirs, files in os.walk(starting_directory):
 
                 document_id = str(int(content['threadId'], base=10)) + "r" + str(index)
 
+                if 'annotatedText' not in reply:
+                    processed_doc_text = reply['postText']
+                else:
+                    document_text = reply['annotatedText']
+
+                    processed_doc_text = pattern_long.sub(get_entity_code, document_text)
+                    print(processed_doc_text)
+
                 data_file.write("<DOC>\n<DOCNO>EF-" + document_id + "</DOCNO>\n")
-                # data_file.write("<FIRST>" + content['title'] + "</FIRST>\n")
-                data_file.write("<TEXT>\n" + str(reply['postText']) + "\n</TEXT>\n")
+                data_file.write("<TEXT>\n" + processed_doc_text + "\n</TEXT>\n")
                 data_file.write("</DOC>\n")
 
                 maps_file_2.write("\t" + document_id)
