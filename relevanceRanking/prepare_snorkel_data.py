@@ -16,42 +16,29 @@ on_server = platform.system() == "Linux"
 
 # Determine file location for running on server and runnning locally
 if on_server:
-    starting_directory = "/home/fadamik/build-attempt/anserini"
-    starting_file = "run.ef-all.bm25.reduced.10.txt"
+    starting_directory = "/home/fadamik/build-attempt/anserini/runs.ehf.titles.1000"
+    starting_file = "run.ehf.titles.1000.0.txt"
     data_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
     output_directory = "/home/fadamik/Documents/"
-    output_filename = "training_data_snorkel_10k_full.txt"
-    query_numbers_name = 'query_numbers.json'
+    output_filename = "training_data_snorkel_10k_titles.txt"
+    query_numbers_location = '/home/fadamik/Documents/query_numbers.json'
 
 else:
-    # starting_directory = "d:/downloads/json/ehealthforum/trac"
-    # starting_file = "run.ef-all.bm25.reduced.txt"
-    # data_directory = "d:/downloads/json/ehealthforum/json-annotated/"
-    # output_directory = "d:/downloads/json/ehealthforum/trac"
-    # output_filename = "training_data_snorkel_10k_full.txt"
-    # query_numbers_name = 'query_numbers.json'
-
-    starting_directory = "m:/build-attempt/anserini"
+    starting_directory = "m:/build-attempt/anserini/runs.ehf.titles.1000"
     starting_file = "run.ef-all.bm25.reduced.txt"
     data_directory = "n:/ehealthforum/json-annotated/"
     output_directory = "d:/downloads/json/ehealthforum/trac"
-    output_filename = "training_data_snorkel_10k_full_rand.txt"
-    query_numbers_name = 'query_numbers.json'
+    output_filename = "training_data_snorkel_test_rel.txt"
+    query_numbers_location = 'd:/downloads/json/ehealthforum/trac/query_numbers.json'
+
+NUMBER_OF_RESULT_FILES = 1
+NUMBER_QUERIES = 1000  # * number of result files
+NUMBER_DOCS_PER_QUERY = 10
+NUMBER_HITS_IN_FILE = 1000
 
 
 # Read file with BM25 scores and load it as dictionary.
-def read_score_file(filename: str) -> dict:
-    NUMBER_QUERIES = 50
-    NUMBER_DOCS_PER_QUERY = 10
-    NUMBER_HITS_IN_FILE = 1000
-
-    random.seed(1668)
-
-    with open(os.path.join(starting_directory, query_numbers_name), 'r', encoding='utf8') as file:
-        query_numbers = json.load(file)
-
-    selected_queries = random.sample(query_numbers, NUMBER_QUERIES)
-
+def read_score_file(query_ids: list, filename: str) -> dict:
     scores = {}
 
     with open(os.path.join(starting_directory, filename), "r", encoding="utf8") as file:
@@ -59,7 +46,7 @@ def read_score_file(filename: str) -> dict:
 
             line_contents = line.split(" ")
             query_id = line_contents[0]
-            if query_id not in selected_queries:
+            if query_id not in query_ids:
                 continue
 
             document_id = line_contents[2]
@@ -110,7 +97,7 @@ def make_queries(query_ids: list, ef: EntityInfo) -> dict:
 def find_documents(document_ids: set) -> dict:
     documents = {}
     for doc_id in document_ids:
-        thread_id, reply_nr = doc_id.replace("EF", "").split("r")
+        thread_id, reply_nr = doc_id.replace("EF-", "").split("r")
 
         reply_nr = int(reply_nr, base=10)
 
@@ -151,18 +138,26 @@ def find_documents(document_ids: set) -> dict:
 def produce_training_data(scores: dict, queries: dict, documents: dict, ef: EntityInfo) -> (list, list):
     training_data = []
 
-    for query_id in scores:
-        for document_id in scores[query_id]:
+    entity_list = ef.get_entity_relations()
 
-            if document_id in documents and query_id in queries:
+    for query_id in scores:
+        if query_id in queries:
+            query = queries[query_id]
+        else:
+            continue
+
+        if 'annotatedOriginCategory' in query:
+            query['annotations'].append(get_entity_code(query['annotatedOriginCategory']))
+
+        for document_id in scores[query_id]:
+            if document_id in documents
                 document = documents[document_id]
-                query = queries[query_id]
             else:
                 continue
 
             query_category = query['category']
             query_thread = query['threadId']
-            query_text = query['text']
+            query_text = query['text'].replace('\t', '')
             query_annotation_count = ""
             for index, count in enumerate(make_annotation_counts(query['annotations'], ef)):
                 if index > 0:
@@ -170,14 +165,30 @@ def produce_training_data(scores: dict, queries: dict, documents: dict, ef: Enti
 
                 query_annotation_count = query_annotation_count + str(count)
 
-            query_annotations = ''
-            for index, annotation in enumerate(query['annotations']):
+            document_annotations = ''
+            for index, annotation in enumerate(document['annotations']):
                 if index > 0:
-                    query_annotations += ";"
-                query_annotations += annotation
+                    document_annotations += ";"
+                document_annotations += annotation
 
-            if query_annotations == '':
+            if len(query['annotations']) > 0:
+                query_annotations = ''
+                relationships = ''
+                for index, annotation in enumerate(query['annotations']):
+                    if index > 0:
+                        query_annotations += ";"
+                    query_annotations += annotation
+
+                    if annotation in entity_list:
+                        for document_annotation in document['annotations']:
+                            if document_annotation in entity_list[annotation]:
+                                if not relationships == '':
+                                    relationships += ','
+                                relationships += entity_list[annotation][document_annotation]
+
+            else:
                 query_annotations = None
+                relationships = None
 
             document_category = document['category']
             document_thread = document['threadId']
@@ -186,7 +197,7 @@ def produce_training_data(scores: dict, queries: dict, documents: dict, ef: Enti
             document_number_votes_t = document['votes-t']
             document_number_votes_s = document['votes-s']
             document_number_votes_h = document['votes-h']
-            document_text = document['document-text']
+            document_text = document['document-text'].replace('\t', '')
             document_is_doctor_reply = document['mdReply']
 
             document_annotation_count = ""
@@ -196,16 +207,10 @@ def produce_training_data(scores: dict, queries: dict, documents: dict, ef: Enti
 
                 document_annotation_count = document_annotation_count + str(count)
 
-            document_annotations = ''
-            for index, annotation in enumerate(document['annotations']):
-                if index > 0:
-                    document_annotations += ";"
-                document_annotations += annotation
-
             training_item = [query_category, query_thread, query_text, query_annotations, query_annotation_count,
                              document_category, document_thread, document_text, document_is_doctor_reply,
                              document_number_votes_h, document_number_votes_s, document_number_votes_t,
-                             document_user_status, document_annotations, document_annotation_count,
+                             document_user_status, document_annotations, document_annotation_count, relationships,
                              scores[query_id][document_id]['relevant'], scores[query_id][document_id]['score']]
 
             training_data.append(training_item)
@@ -239,7 +244,7 @@ def write_out_training_data(output_path: str, data: list) -> None:
             "query_category" + "\t" + "query_thread" + "\t" + "query_text" + "\t" + "query_annotations" + "\t" + all_types + "\t" +
             "document_category" + "\t" + "document_thread" + "\t" + "document_text" + "\t" + "document_is_doctor_reply" + "\t" +
             "document_number_votes_h" + "\t" + "document_number_votes_s" + "\t" + "document_number_votes_t" + "\t" +
-            "document_user_status" + "\t" + "document_annotations" + "\t" + all_types_d + "\t" +
+            "document_user_status" + "\t" + "document_annotations" + "\t" + all_types_d + "\t" + "relationships_list" + "\t" +
             "bm25_relevant" + "\t" + "bm25_score" + "\n")
 
         for row in data:
@@ -250,17 +255,24 @@ def write_out_training_data(output_path: str, data: list) -> None:
 
             training_file.write('\n')
 
-    print("Wrote training data to file: " + os.path.join(output_path, output_filename   ))
-
-    # with open(os.path.join(output_path, "targets.json"), "w+", encoding="utf8") as targets_file:
-    #     json.dump(targets, targets_file)
-    # print("Wrote target values to file: " + os.path.join(output_path, "targets.json"))
+    print("Wrote training data to file: " + os.path.join(output_path, output_filename))
 
 
 def main():
     ef = EntityInfo()
 
-    bm25_scores = read_score_file(starting_file)
+    random.seed(1668)
+
+    with open(query_numbers_location, 'r', encoding='utf8') as file:
+        query_numbers = json.load(file)
+
+    bm25_scores = {}
+
+    for i in range(NUMBER_OF_RESULT_FILES):
+        print("Now reading queries from file number: " + str(i))
+        selected_queries = random.sample(query_numbers[i], NUMBER_QUERIES)
+        bm25_scores.update(read_score_file(selected_queries,
+                                           os.path.join(starting_directory, "run.ehf.titles.1000." + str(i) + ".txt")))
 
     full_queries = make_queries(list(bm25_scores.keys()), ef)
 

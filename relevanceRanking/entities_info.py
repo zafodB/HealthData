@@ -4,20 +4,27 @@
 
 import platform
 import json
-from relevanceRanking.connect_to_kb import connect_elasticsearch, is_informative, get_entity_types
 import re
+from relevanceRanking.connect_to_kb import connect_elasticsearch, is_informative, get_entity_types
 
 
-def get_entity_code(entity: str) -> str:
-    if type(entity) is re.Match:
+def get_entity_code(entity) -> str:
+    pattern = re.compile('C[0-9]{3,}')
+
+    try:
+        # pipe_index = entity.find('|')
+
+        stripped = re.search(pattern, entity)
+    except AttributeError:
         entity = entity.group()
+        # pipe_index = entity.find('|')
+        stripped = re.search(pattern, entity)
 
-    pipe_index = entity.find('|')
-
-    if pipe_index == -1:
-        return entity
-    else:
-        return entity[:pipe_index].replace('[', '')
+    return stripped.group()
+    # if pipe_index == -1:
+    #     return entity
+    # else:
+    #     return entity[:pipe_index].replace('[', '')
 
 
 class EntityInfo:
@@ -37,11 +44,13 @@ class EntityInfo:
             self.__informative_nodes_list_location = "/home/fadamik/Documents/informative_nodes.txt"
             self.__informative_nodes_categories_location = "/home/fadamik/Documents/informative_nodes_categories.json"
             self.__other_nodes_list_location = "/home/fadamik/Documents/other_nodes.txt"
+            self.__entity_relations_list_location = "/home/fadamik/Documents/knowledge-graph/informative_edges.json"
 
         else:
             self.__informative_nodes_list_location = "D:/downloads/json/informative_nodes.txt"
             self.__informative_nodes_categories_location = "d:/downloads/json/informative_nodes_categories.json"
             self.__other_nodes_list_location = "D:/downloads/json/other_nodes.txt"
+            self.__entity_relations_list_location = "m:/Documents/knowledge-graph/informative_edges.json"
 
         self.__elastic_search = connect_elasticsearch()
         self.__load_entity_types()
@@ -124,3 +133,10 @@ class EntityInfo:
             return self.entity_types[entity]
         else:
             return ""
+
+    def get_entity_relations(self) -> dict:
+        with open(self.__entity_relations_list_location, "r", encoding="utf8") as relationship_file:
+            entity_list = json.load(relationship_file)
+            print("Loaded entity relations file.")
+
+        return entity_list

@@ -76,12 +76,12 @@ for root, dirs, files in os.walk(starting_directory):
 
             query_file.write(
                 "<top>\n\n<num> Number: " + topic_no + "\n<title>\n" + query_text + "\n\n<desc> Description:\nNA\n\n<narr> Narrative:\nNA\n\n</top>\n")
-            print("Wrote query")
+            # print("Wrote query")
             queries_written += 1
 
             if queries_written % 3600 == 0:
                 query_file.close()
-                file_number = queries_written % 3600
+                file_number = queries_written // 3600
                 query_file = open(os.path.join(output_directory_queries, "queries" + str(file_number) + ".txt"), "w+", encoding="utf8")
 
             maps_file_2.write(topic_no)
@@ -94,15 +94,12 @@ for root, dirs, files in os.walk(starting_directory):
                 document_id = str(int(content['threadId'], base=10)) + "r" + str(index)
 
                 if 'annotatedText' not in reply:
-                    processed_doc_text = reply['postText']
+                    document_text = reply['postText']
                 else:
-                    document_text = reply['annotatedText']
-
-                    processed_doc_text = pattern_long.sub(get_entity_code, document_text)
-                    print(processed_doc_text)
+                    document_text = pattern_long.sub(get_entity_code, reply['annotatedText'])
 
                 data_file.write("<DOC>\n<DOCNO>EF-" + document_id + "</DOCNO>\n")
-                data_file.write("<TEXT>\n" + processed_doc_text + "\n</TEXT>\n")
+                data_file.write("<TEXT>\n" + document_text + "\n</TEXT>\n")
                 data_file.write("</DOC>\n")
 
                 maps_file_2.write("\t" + document_id)

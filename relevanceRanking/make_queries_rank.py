@@ -60,6 +60,8 @@ def extract_query(json_contents: dict, ef: EntityInfo):
     query['text'] = post_text.replace('\t', '')
 
     query['threadId'] = json_contents['threadId']
+    if 'annotatedOriginCategory' in json_contents:
+        query['annotatedOriginCategory'] = json_contents['annotatedOriginCategory']
 
     if len(annotations) == 0:
         return None
