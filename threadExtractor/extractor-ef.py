@@ -17,14 +17,16 @@ from dateutil.parser import *
 
 forum = "ehealthforum"
 
-category_map_location = "ehealthforum_map.json"
 # category_map_location = "D:/OneDrive/Documents/AB Germany/health_data/ehealthforum_map.json"
-starting_directory = "/GW/D5data-1/BioYago/ehealthforum/health/"
 # starting_directory = "D:/Downloads/json/ehealthforums/html2/"
-output_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-sorted2/"
 # output_directory = "D:/Downloads/json/ehealthforums/html-sorted/"
 
+category_map_location = "ehealthforum_map.json"
+starting_directory = "/GW/D5data-1/BioYago/ehealthforum/health/"
+output_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-sorted2/"
 
+
+# Load the file that maps forum-specific categories to unified list of categories across forums.
 def load_category_map(location):
     category_map_file = open(location, "r", encoding="utf8")
     contents = category_map_file.read()
@@ -32,33 +34,37 @@ def load_category_map(location):
     return json.loads(contents)
 
 
+# Extract all features of interest from the given file
 def extract_all_items(file_name, file_location):
+    # Extract thread ID of the thread. This ID should be forum unique. Sometimes this ID could not be extracted,
+    # in which case hash of name would be used`
     def extract_thread_id(soup, name):
-
         id_container = soup.find("input", {"name": "reply_to_topic_id"})
         if id_container:
             return id_container['value']
-
         else:
             name_hash = hashlib.md5(name.encode('utf-8'))
-
             return str(int.from_bytes(name_hash.digest()[:3], byteorder='big'))
 
+    # Extract original category of the post.
     def extract_origin_category(soup):
         category = soup.find("div", {"class": "vt_h2"}).findChild().findChildren()[-1].getText().replace(" Forum", "")
 
         return category
 
+    # Extract the thread name (title of the thread)
     def extract_thread_name(soup):
         name = soup.find("h1", {"class": "caps", "id": "page_h1"}).getText()
         name = re.sub(" \(Page [0-9]+\)", "", name)
 
         return name
 
+    # Lookup the original category in the category map
     def map_common_category(origin_category):
         category = category_map[origin_category]
         return category
 
+    # Extract ID of the post. Post ID may not be unique for all forum posts.
     def extract_post_id(post_body_html, is_first_post):
         post_id = None
 
@@ -75,9 +81,10 @@ def extract_all_items(file_name, file_location):
                 post_id = post_id['id'].split("_")[-1]
             except AttributeError as ae:
                 return None
-
         return post_id
 
+    # Extract the main text of the post, filtering out quotes and removing entries that have been either deleted or
+    # are being deleted by the forum administrators
     def extract_post_text(post_body_html):
         has_quotes = candidate.find("td", {"class": "quote"})
 
@@ -101,6 +108,7 @@ def extract_all_items(file_name, file_location):
 
         return post_text, has_quotes
 
+    # Extract the author of the post and related info, like username and status.
     def extract_created_by(post_html, is_first_post):
         if is_first_post:
             username = post_html.find("span", {"class": "vt_asked_by_user"}).getText().strip()
@@ -126,6 +134,7 @@ def extract_all_items(file_name, file_location):
             "joinDate": None
         }
 
+    # Extract the date of the when comment was added.
     def extract_post_date(post_html, is_first_post):
         if is_first_post:
             date_text = post_html.find("span", {"class": "vt_first_timestamp"}).getText().strip()
@@ -135,6 +144,7 @@ def extract_all_items(file_name, file_location):
 
         return parse(date_text).isoformat()
 
+    # Extract votes casted on this post ('helpful' votes in this case)
     def extract_helpful_marks(post_html):
         helpful_marks = []
 
@@ -167,6 +177,7 @@ def extract_all_items(file_name, file_location):
 
     post_candidates = thread_html.find_all("div", {"class": "vt_post_holder"})
 
+    # Loop through all structures that could possibly be posts
     for index, candidate in enumerate(post_candidates):
         # print(index)
         is_first_post = index == 0
@@ -237,6 +248,8 @@ def extract_all_items(file_name, file_location):
     return thread_id, output
 
 
+# Some threads could be spanning multiple files. If this is the case and a JSON file for particular thread has already
+# been created, then update this JSON file instead of writing over it.
 def update_content(old_json, new_json):
     if new_json['originalFile'][0] in old_json['originalFile']:
         return None
@@ -258,6 +271,7 @@ def update_content(old_json, new_json):
     return old_json
 
 
+# Write out the extracted information onto an JSON file
 def write_out_file(file_name, contents):
     folder_name = str(int(file_name) // 1000)
 
@@ -267,11 +281,6 @@ def write_out_file(file_name, contents):
     full_path = os.path.join(output_directory, folder_name, str(file_name) + ".json")
 
     if os.path.exists(full_path):
-        # existing_file = open(full_path, "r", encoding="utf8")
-        # existing_json = json.loads(existing_file.read())
-        # existing_file.close()
-
-        # contents = update_content(existing_json, contents)
         print("File already exists: " + full_path)
 
     if contents:
@@ -292,11 +301,10 @@ category_map = load_category_map(category_map_location)
 unprocessed_files = []
 unprocessed_total = 0
 
+# Walk over HTML files in the starting directory.
 for root, dirs, files in os.walk(starting_directory):
     for file_name in files:
         try:
-            # file_name = "274987.html"
-
             pattern = re.compile("topic[0-9]*_[0-9]*")
             pattern2 = re.compile("_medical_questions_")
 
@@ -315,10 +323,12 @@ for root, dirs, files in os.walk(starting_directory):
                 unprocessed_list.close()
                 unprocessed_files = []
 
+                # Write out current progress
                 print("Unprocessed files: " + str(unprocessed_total) + ". Processed files: " + str(file_count))
                 print(OKBLUE + "Error-free ratio: " + str((error_files / successful_files) * 100) + "%   E: " + str(
                     error_files) + ENDC)
 
+        # If an exception occurs during processing the HTML file, skip it and move to the next one.
         except Exception as e:
             print("Error processing file: " + os.path.join(root, file_name) + ": " + str(e))
             traceback.print_exc()
