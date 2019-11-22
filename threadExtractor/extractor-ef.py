@@ -144,7 +144,7 @@ def extract_all_items(file_name, file_location):
 
         return parse(date_text).isoformat()
 
-    # Extract votes casted on this post ('helpful' votes in this case)
+    # Extract votes casted on this post ('helpful' votes in this forum)
     def extract_helpful_marks(post_html):
         helpful_marks = []
 
