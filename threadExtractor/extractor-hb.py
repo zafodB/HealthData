@@ -18,15 +18,17 @@ from dateutil.parser import *
 
 forum = "healthboards"
 
-category_map_location = "healthboards_map.json"
 # category_map_location = "D:/OneDrive/Documents/AB Germany/health_data/healthboards_map2.json"
-starting_directory = "/GW/D5data-1/BioYago/healthboards/boards/"
 # starting_directory = "D:/Downloads/json/healthboards/cerebral-palsy/"
-output_directory = "/scratch/GW/pool0/fadamik/healthboards/json-sorted4/"
 # output_directory = "D:/Downloads/json/healthboards/html-sorted/"
+
+category_map_location = "healthboards_map.json"
+starting_directory = "/GW/D5data-1/BioYago/healthboards/boards/"
+output_directory = "/scratch/GW/pool0/fadamik/healthboards/json-sorted4/"
 pairs_directory = "pairs/"
 
 
+# Load the file that maps forum-specific categories to unified list of categories across forums.
 def load_category_map(location):
     category_map_file = open(location, "r", encoding="utf8")
     contents = category_map_file.read()
@@ -34,27 +36,33 @@ def load_category_map(location):
     return json.loads(contents)
 
 
+# Extract all features of interest from the given file
 def extract_all_items(file_name, file_location, pairs_file):
+    # Extract original category of the post.
     def extract_origin_category(soup):
         navbars = soup.find_all("span", {"class": "navbar"})
         category = navbars[-1].getText()[2:]
         return category
 
+    # Extract thread ID of the thread. This ID should be forum unique.
     def extract_thread_id(soup):
         id_class = soup.find("td", {"id": "linkbacktools"}).findChildren()[0]
         thread_id = id_class.attrs['href'][3:].split("-")[0]
         return thread_id
 
+    # Extract the thread name (title of the thread)
     def extract_thread_name(soup):
         strong = soup.find("div", {"class": "navbar"}).findChildren()[-1]
         name = strong.getText()
         return name
 
+    # Lookup the original category in the category map
     def map_common_category(origin_category):
-
         category = category_map[origin_category]
         return category
 
+    # Extract the author of the post and related info, like username, status, location, gender, join date,
+    # total number of posts (if provided by the user)
     def extract_created_by(post_id):
         gender = None
         location = None
@@ -118,10 +126,10 @@ def extract_all_items(file_name, file_location, pairs_file):
             "joinDate": join_date
         }
 
+    # Extract the main text of the post, removing quotes from the text.
     def extract_post_message(post_html, post_id):
         children = post_html.find("div", {"id": "post_message_" + post_id}).findChildren()
 
-        message = ""
         found_quote = False
 
         if children:
@@ -140,11 +148,13 @@ def extract_all_items(file_name, file_location, pairs_file):
         message = re.sub(' +', ' ', message).replace('\n', '')
         return message, found_quote
 
+    # Extract the date of the when comment was added.
     def extract_post_date(post_html):
         date_as_text = post_html.find("td", {"class": "thead"}).getText().strip()
         post_date = parse(date_as_text)
         return post_date.isoformat()
 
+    # Extract the thank-you votes casted on this post
     def extract_thank_yous(post_html, post_id):
         thanks_box = post_html.find("div", {"id": "post_thanks_box_" + post_id}).find("td", {"class": "alt1"})
 
@@ -160,6 +170,7 @@ def extract_all_items(file_name, file_location, pairs_file):
                 thank_you_list.append(thank_you)
         return thank_you_list
 
+    # Extract the 'support' votes casted on this post
     def extract_support_hugs(post_html, post_id):
         support_hugs_box = post_html.find("div", {"id": "post_hugs_box_" + post_id})
 
@@ -178,9 +189,6 @@ def extract_all_items(file_name, file_location, pairs_file):
                 support_hugs_list.append(thank_you)
         return support_hugs_list
 
-    def extract_helpful_marks(post_html, post_id):
-        pass
-
     thread_html = BeautifulSoup(open(file_location, "rb"), "html.parser")
 
     thread_id = extract_thread_id(thread_html)
@@ -198,6 +206,7 @@ def extract_all_items(file_name, file_location, pairs_file):
     reply_count = max(index for index, post in enumerate(posts)) + 1
     replies = []
 
+    # Loop through all structures that could possibly be posts
     for index, post in enumerate(posts):
         post_order = index
         post_id = post.get("id")[4:]
@@ -233,7 +242,8 @@ def extract_all_items(file_name, file_location, pairs_file):
             "helpful": helpful
         })
 
-        # Write out data to a text file the reply has at least one vote.
+        # Write out data to a special file the reply has at least one vote.
+        # (This is a side feature and not part of extracting elements to the JSON files)
         tab_char = "\t"
         if (post_thank_you_count > 0 or post_hugs_count > 0) and index > 0:
             pairs_file.write(
@@ -274,7 +284,8 @@ def extract_all_items(file_name, file_location, pairs_file):
 
     return thread_id, output
 
-
+# Some threads could be spanning multiple files. If this is the case and a JSON file for particular thread has already
+# been created, then update this JSON file instead of writing over it.
 def update_content(old_json, new_json):
     if new_json['originalFile'][0] in old_json['originalFile']:
         return None
@@ -303,6 +314,7 @@ def update_content(old_json, new_json):
     return old_json
 
 
+# Write out the extracted information onto an JSON file
 def write_out_file(file_name, contents):
     folder_name = str(int(file_name) // 1000)
 
@@ -334,6 +346,7 @@ category_map = load_category_map(category_map_location)
 
 pairs_file = open(os.path.join(pairs_directory, "pairs0.txt"), "a+", encoding="utf8")
 
+# Walk over HTML files in the starting directory.
 for root, dirs, files in os.walk(starting_directory):
     for file_name in files:
         try:
@@ -346,16 +359,19 @@ for root, dirs, files in os.walk(starting_directory):
             successful_files += 1
             file_count += 1
 
+            # Write out current progress
             if file_count % 100 == 0:
                 print("Processed files: " + str(file_count))
                 print(OKBLUE + "Error-free ratio: " + str((error_files / successful_files) * 100) + "%   E: " + str(
                     error_files) + ENDC)
 
+            # Write out current progress
             if file_count % 10000 == 0:
                 pairs_file.close()
                 pairs_file = open(os.path.join(pairs_directory, "pairs" + str(file_count / 10000) + ".txt"), "a+",
                                   encoding="utf8")
 
+        # If an exception occurs during processing the HTML file, skip it and move to the next one.
         except Exception as e:
             print("Error processing file: " + os.path.join(root, file_name) + ": " + str(e))
             traceback.print_exc()
