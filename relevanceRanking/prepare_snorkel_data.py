@@ -32,7 +32,7 @@ else:
     query_numbers_location = 'd:/downloads/json/ehealthforum/trac/query_numbers.json'
 
 NUMBER_OF_RESULT_FILES = 1
-NUMBER_QUERIES = 1000  # * number of result files
+NUMBER_QUERIES = 10  # * number of result files
 NUMBER_DOCS_PER_QUERY = 10
 NUMBER_HITS_IN_FILE = 1000
 
@@ -53,7 +53,7 @@ def read_score_file(query_ids: list, filename: str) -> dict:
             doc_rank = int(line_contents[3], base=10)
             document_score = line_contents[4]
 
-            if NUMBER_DOCS_PER_QUERY > doc_rank:
+            if NUMBER_DOCS_PER_QUERY >= doc_rank:
                 relevant = True
             elif NUMBER_DOCS_PER_QUERY <= doc_rank <= NUMBER_HITS_IN_FILE - NUMBER_DOCS_PER_QUERY:
                 continue
@@ -146,14 +146,18 @@ def produce_training_data(scores: dict, queries: dict, documents: dict, ef: Enti
         else:
             continue
 
+        training_data_pool = []
+
         if 'annotatedOriginCategory' in query:
-            query['annotations'].append(get_entity_code(query['annotatedOriginCategory']))
+            entity_code = get_entity_code(query['annotatedOriginCategory'])
+            if entity_code is not None:
+                query['annotations'].append(entity_code)
 
         for document_id in scores[query_id]:
-            if document_id in documents
+            if document_id in documents:
                 document = documents[document_id]
             else:
-                continue
+                break
 
             query_category = query['category']
             query_thread = query['threadId']
@@ -197,7 +201,7 @@ def produce_training_data(scores: dict, queries: dict, documents: dict, ef: Enti
             document_number_votes_t = document['votes-t']
             document_number_votes_s = document['votes-s']
             document_number_votes_h = document['votes-h']
-            document_text = document['document-text'].replace('\t', '')
+            document_text = document['document-text'].replace('\t', '').replace('\n', '')
             document_is_doctor_reply = document['mdReply']
 
             document_annotation_count = ""
@@ -213,7 +217,11 @@ def produce_training_data(scores: dict, queries: dict, documents: dict, ef: Enti
                              document_user_status, document_annotations, document_annotation_count, relationships,
                              scores[query_id][document_id]['relevant'], scores[query_id][document_id]['score']]
 
-            training_data.append(training_item)
+            training_data_pool.append(training_item)
+
+        if len(training_data_pool) == 20:
+            for item in training_data_pool:
+                training_data.append(item)
 
     return training_data
 
@@ -227,8 +235,8 @@ def make_annotation_counts(annotations: list, entity_info: EntityInfo) -> list:
     for annotation in annotations:
         types = entity_info.get_entity_types(annotation)
 
-        for type in types:
-            types_counts[type] += 1
+        for entity_type in types:
+            types_counts[entity_type] += 1
 
     output_counts = []
     for entity in informative_entity_types:
