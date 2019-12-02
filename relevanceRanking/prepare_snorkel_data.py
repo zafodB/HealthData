@@ -20,8 +20,8 @@ if on_server:
     starting_file = "run.ehf.titles.1000.0.txt"
     data_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
     output_directory = "/home/fadamik/Documents/"
-    output_filename = "training_data_snorkel_10k_titles.txt"
-    query_numbers_location = '/home/fadamik/Documents/query_numbers.json'
+    output_filename = "training_data_snorkel_ehf_100k_titles.txt"
+    query_numbers_location = '/home/fadamik/Documents/query_numbers_ehf.json'
 
 else:
     starting_directory = "m:/build-attempt/anserini/runs.ehf.titles.1000"
@@ -31,8 +31,8 @@ else:
     output_filename = "training_data_snorkel_test_rel.txt"
     query_numbers_location = 'd:/downloads/json/ehealthforum/trac/query_numbers.json'
 
-NUMBER_OF_RESULT_FILES = 1
-NUMBER_QUERIES = 10  # * number of result files
+NUMBER_OF_RESULT_FILES = 79
+NUMBER_QUERIES = 200  # * number of result files
 NUMBER_DOCS_PER_QUERY = 10
 NUMBER_HITS_IN_FILE = 1000
 
@@ -118,6 +118,7 @@ def find_documents(document_ids: set) -> dict:
                 documents[doc_id]['votes-s'] = contents['replies'][reply_nr]['postSupportCount']
                 documents[doc_id]['votes-t'] = contents['replies'][reply_nr]['postThankYouCount']
                 documents[doc_id]['document-text'] = contents['replies'][reply_nr]['postText']
+                documents[doc_id]['username'] = contents['replies'][reply_nr]['createdBy']['username']
 
                 if 'annotationsFull' in contents['replies'][reply_nr]:
                     documents[doc_id]['annotations'] = []
@@ -162,6 +163,7 @@ def produce_training_data(scores: dict, queries: dict, documents: dict, ef: Enti
             query_category = query['category']
             query_thread = query['threadId']
             query_text = query['text'].replace('\t', '')
+            query_username = query['username']
             query_annotation_count = ""
             for index, count in enumerate(make_annotation_counts(query['annotations'], ef)):
                 if index > 0:
@@ -198,6 +200,7 @@ def produce_training_data(scores: dict, queries: dict, documents: dict, ef: Enti
             document_thread = document['threadId']
 
             document_user_status = document['userStatus']
+            document_username = document['username']
             document_number_votes_t = document['votes-t']
             document_number_votes_s = document['votes-s']
             document_number_votes_h = document['votes-h']
@@ -211,10 +214,12 @@ def produce_training_data(scores: dict, queries: dict, documents: dict, ef: Enti
 
                 document_annotation_count = document_annotation_count + str(count)
 
-            training_item = [query_category, query_thread, query_text, query_annotations, query_annotation_count,
+            training_item = [query_category, query_thread, query_text, query_username, query_annotations,
+                             query_annotation_count,
                              document_category, document_thread, document_text, document_is_doctor_reply,
                              document_number_votes_h, document_number_votes_s, document_number_votes_t,
-                             document_user_status, document_annotations, document_annotation_count, relationships,
+                             document_username, document_user_status, document_annotations, document_annotation_count,
+                             relationships,
                              scores[query_id][document_id]['relevant'], scores[query_id][document_id]['score']]
 
             training_data_pool.append(training_item)
@@ -249,10 +254,10 @@ def write_out_training_data(output_path: str, data: list) -> None:
     with open(os.path.join(output_path, output_filename), "w+", encoding="utf8") as training_file:
 
         training_file.write(
-            "query_category" + "\t" + "query_thread" + "\t" + "query_text" + "\t" + "query_annotations" + "\t" + all_types + "\t" +
+            "query_category" + "\t" + "query_thread" + "\t" + "query_text" + "\t" + "query_username" + "\t" + "query_annotations" + "\t" + all_types + "\t" +
             "document_category" + "\t" + "document_thread" + "\t" + "document_text" + "\t" + "document_is_doctor_reply" + "\t" +
             "document_number_votes_h" + "\t" + "document_number_votes_s" + "\t" + "document_number_votes_t" + "\t" +
-            "document_user_status" + "\t" + "document_annotations" + "\t" + all_types_d + "\t" + "relationships_list" + "\t" +
+            "document_username" + "\t" + "document_user_status" + "\t" + "document_annotations" + "\t" + all_types_d + "\t" + "relationships_list" + "\t" +
             "bm25_relevant" + "\t" + "bm25_score" + "\n")
 
         for row in data:
@@ -269,7 +274,7 @@ def write_out_training_data(output_path: str, data: list) -> None:
 def main():
     ef = EntityInfo()
 
-    random.seed(1668)
+    random.seed(1468)
 
     with open(query_numbers_location, 'r', encoding='utf8') as file:
         query_numbers = json.load(file)

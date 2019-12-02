@@ -58,6 +58,7 @@ def extract_query(json_contents: dict, ef: EntityInfo):
     length = len(post_text)
     query['length'] = length
     query['text'] = post_text.replace('\t', '')
+    query['username'] = json_contents['replies'][0]['createdBy']['username']
 
     query['threadId'] = json_contents['threadId']
     if 'annotatedOriginCategory' in json_contents:
