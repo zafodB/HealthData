@@ -6,6 +6,7 @@ import os
 import json
 import platform
 import random
+import multiprocessing
 from relevanceRanking.entities_info import EntityInfo
 from relevanceRanking.make_queries_rank import make_queries, extract_query, get_entity_code
 from relevanceRanking.connect_to_kb import informative_entity_types
@@ -271,6 +272,12 @@ def write_out_training_data(output_path: str, data: list) -> None:
     print("Wrote training data to file: " + os.path.join(output_path, output_filename))
 
 
+def run_process(process_data: dict, return_dictionary: dict):
+    for key in process_data:
+        # bm25_scores.update(
+
+        return_dictionary[key] = read_score_file(process_data[key], os.path.join(starting_directory, "run.ehf.titles.1000." + str(key) + ".txt"))
+
 def main():
     ef = EntityInfo()
 
@@ -281,13 +288,29 @@ def main():
 
     bm25_scores = {}
 
+    processes = []
+    manager = multiprocessing.Manager()
+    return_dict = manager.dict()
+
     for i in range(NUMBER_OF_RESULT_FILES):
         print("I AM READY FOR SOME THREADS")
 
+        # new_process
         print("Now reading queries from file number: " + str(i))
         selected_queries = random.sample(query_numbers[i], NUMBER_QUERIES)
-        bm25_scores.update(read_score_file(selected_queries,
-                                           os.path.join(starting_directory, "run.ehf.titles.1000." + str(i) + ".txt")))
+
+        data_as_dict = {i: selected_queries}
+
+        p = multiprocessing.Process(target=run_process, args=(data_as_dict, return_dict))
+        p.start()
+        processes.append(p)
+
+    for proc in processes:
+        proc.join()
+
+    print(return_dict)
+        # bm25_scores.update(read_score_file(selected_queries,
+        #                                    os.path.join(starting_directory, "run.ehf.titles.1000." + str(i) + ".txt")))
 
     full_queries = make_queries(list(bm25_scores.keys()), ef)
 
