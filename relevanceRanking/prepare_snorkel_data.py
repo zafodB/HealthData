@@ -282,6 +282,8 @@ def main():
     bm25_scores = {}
 
     for i in range(NUMBER_OF_RESULT_FILES):
+        print("I AM READY FOR SOME THREADS")
+
         print("Now reading queries from file number: " + str(i))
         selected_queries = random.sample(query_numbers[i], NUMBER_QUERIES)
         bm25_scores.update(read_score_file(selected_queries,
