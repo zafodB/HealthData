@@ -29,11 +29,11 @@ else:
     starting_file = "run.ef-all.bm25.reduced.txt"
     data_directory = "n:/ehealthforum/json-annotated/"
     output_directory = "d:/downloads/json/ehealthforum/trac"
-    output_filename = "training_data_snorkel_test_rel.txt"
+    output_filename = "training_data_snorkel_test_multiproc.txt"
     query_numbers_location = 'd:/downloads/json/ehealthforum/trac/query_numbers.json'
 
-NUMBER_OF_RESULT_FILES = 79
-NUMBER_QUERIES = 200  # * number of result files
+NUMBER_OF_RESULT_FILES = 3
+NUMBER_QUERIES = 10  # * number of result files
 NUMBER_DOCS_PER_QUERY = 10
 NUMBER_HITS_IN_FILE = 1000
 
@@ -166,7 +166,7 @@ def produce_training_data(scores: dict, queries: dict, documents: dict, ef: Enti
             query_text = query['text'].replace('\t', '')
             query_username = query['username']
             query_annotation_count = ""
-            for index, count in enumerate(make_annotation_counts(query['annotations'], ef)):
+            for index, count in enumerate(make_annotation_types(query['annotations'], ef)):
                 if index > 0:
                     query_annotation_count = query_annotation_count + '\t'
 
@@ -209,7 +209,7 @@ def produce_training_data(scores: dict, queries: dict, documents: dict, ef: Enti
             document_is_doctor_reply = document['mdReply']
 
             document_annotation_count = ""
-            for index, count in enumerate(make_annotation_counts(document['annotations'], ef)):
+            for index, count in enumerate(make_annotation_types(document['annotations'], ef)):
                 if index > 0:
                     document_annotation_count = document_annotation_count + '\t'
 
@@ -232,7 +232,7 @@ def produce_training_data(scores: dict, queries: dict, documents: dict, ef: Enti
     return training_data
 
 
-def make_annotation_counts(annotations: list, entity_info: EntityInfo) -> list:
+def make_annotation_types(annotations: list, entity_info: EntityInfo) -> list:
     types_counts = {}
 
     for entity in informative_entity_types:
@@ -272,13 +272,17 @@ def write_out_training_data(output_path: str, data: list) -> None:
     print("Wrote training data to file: " + os.path.join(output_path, output_filename))
 
 
-def run_process(process_data: dict, return_dictionary: dict):
+def run_my_process(process_data: dict, return_dictionary: dict):
     for key in process_data:
         # bm25_scores.update(
 
         return_dictionary[key] = read_score_file(process_data[key], os.path.join(starting_directory, "run.ehf.titles.1000." + str(key) + ".txt"))
 
-def main():
+
+# def main():
+
+if __name__ == '__main__':
+
     ef = EntityInfo()
 
     random.seed(1468)
@@ -289,9 +293,12 @@ def main():
     bm25_scores = {}
 
     processes = []
+
+    print("wtf0")
     manager = multiprocessing.Manager()
     return_dict = manager.dict()
 
+    print("wtf")
     for i in range(NUMBER_OF_RESULT_FILES):
         print("I AM READY FOR SOME THREADS")
 
@@ -301,27 +308,26 @@ def main():
 
         data_as_dict = {i: selected_queries}
 
-        p = multiprocessing.Process(target=run_process, args=(data_as_dict, return_dict))
-        p.start()
+        p = multiprocessing.Process(target=run_my_process, args=(data_as_dict, return_dict))
+
         processes.append(p)
+        p.start()
 
     for proc in processes:
         proc.join()
 
     print(return_dict)
-        # bm25_scores.update(read_score_file(selected_queries,
-        #                                    os.path.join(starting_directory, "run.ehf.titles.1000." + str(i) + ".txt")))
+    # bm25_scores.update(read_score_file(selected_queries,
+    #                                    os.path.join(starting_directory, "run.ehf.titles.1000." + str(i) + ".txt")))
 
     full_queries = make_queries(list(bm25_scores.keys()), ef)
-
     document_ids = set()
     for query in bm25_scores:
         for doc_id in bm25_scores[query].keys():
             document_ids.add(doc_id)
-
     full_documents = find_documents(document_ids)
     training_data = produce_training_data(bm25_scores, full_queries, full_documents, ef)
     write_out_training_data(output_directory, training_data)
 
 
-main()
+# main()
