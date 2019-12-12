@@ -21,19 +21,19 @@ if on_server:
     starting_file = "run.ehf.titles.1000.0.txt"
     data_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
     output_directory = "/home/fadamik/Documents/"
-    output_filename = "training_data_snorkel_ehf_100k_titles.txt"
+    output_filename = "training_data_thread_test.txt"
     query_numbers_location = '/home/fadamik/Documents/query_numbers_ehf.json'
 
 else:
     starting_directory = "m:/build-attempt/anserini/runs.ehf.titles.1000"
-    starting_file = "run.ef-all.bm25.reduced.txt"
-    data_directory = "n:/ehealthforum/json-annotated/"
+    starting_file = "run.ehf.titles.1000.0.txt"
+    data_directory = "n:/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
     output_directory = "d:/downloads/json/ehealthforum/trac"
     output_filename = "training_data_snorkel_test_multiproc.txt"
-    query_numbers_location = 'd:/downloads/json/ehealthforum/trac/query_numbers.json'
+    query_numbers_location = 'm:/Documents/query_numbers_ehf.json'
 
-NUMBER_OF_RESULT_FILES = 3
-NUMBER_QUERIES = 10  # * number of result files
+NUMBER_OF_RESULT_FILES = 1
+NUMBER_QUERIES = 20 # * number of result files
 NUMBER_DOCS_PER_QUERY = 10
 NUMBER_HITS_IN_FILE = 1000
 
@@ -78,7 +78,7 @@ def make_queries(query_ids: list, ef: EntityInfo) -> dict:
 
     for query_id in query_ids:
         folder = str(int(query_id, 10) // 1000)
-        filename = query_id + ".json"
+        filename = str(query_id) + ".json"
 
         try:
             with open(os.path.join(data_directory, folder, filename), "r", encoding="utf8") as file:
@@ -272,14 +272,11 @@ def write_out_training_data(output_path: str, data: list) -> None:
     print("Wrote training data to file: " + os.path.join(output_path, output_filename))
 
 
-def run_my_process(process_data: dict, return_dictionary: dict):
+def read_scores(process_data: dict, return_dictionary: dict):
     for key in process_data:
-        # bm25_scores.update(
+        return_dictionary[key] = read_score_file(process_data[key],
+                                                 os.path.join(starting_directory, "run.ehf.titles.1000." + str(key) + ".txt"))
 
-        return_dictionary[key] = read_score_file(process_data[key], os.path.join(starting_directory, "run.ehf.titles.1000." + str(key) + ".txt"))
-
-
-# def main():
 
 if __name__ == '__main__':
 
@@ -290,44 +287,46 @@ if __name__ == '__main__':
     with open(query_numbers_location, 'r', encoding='utf8') as file:
         query_numbers = json.load(file)
 
-    bm25_scores = {}
+    print("Starting Multiprocessing manager.")
+    manager = multiprocessing.Manager()
+    bm25_scores_multith = manager.dict()
 
     processes = []
 
-    print("wtf0")
-    manager = multiprocessing.Manager()
-    return_dict = manager.dict()
-
-    print("wtf")
     for i in range(NUMBER_OF_RESULT_FILES):
-        print("I AM READY FOR SOME THREADS")
 
-        # new_process
-        print("Now reading queries from file number: " + str(i))
+        print('Process ' + str(i) + ' started. Now reading queries from file number: ' + str(i))
         selected_queries = random.sample(query_numbers[i], NUMBER_QUERIES)
 
         data_as_dict = {i: selected_queries}
 
-        p = multiprocessing.Process(target=run_my_process, args=(data_as_dict, return_dict))
+        p = multiprocessing.Process(target=read_scores, args=(data_as_dict, bm25_scores_multith))
 
         processes.append(p)
         p.start()
+        print()
 
     for proc in processes:
         proc.join()
 
-    print(return_dict)
-    # bm25_scores.update(read_score_file(selected_queries,
-    #                                    os.path.join(starting_directory, "run.ehf.titles.1000." + str(i) + ".txt")))
+    print("All processes joined.")
+
+    bm25_scores = {}
+
+    for value in bm25_scores_multith.copy().values():
+        for query in value:
+            bm25_scores[query] = value[query]
 
     full_queries = make_queries(list(bm25_scores.keys()), ef)
+
     document_ids = set()
+
     for query in bm25_scores:
         for doc_id in bm25_scores[query].keys():
             document_ids.add(doc_id)
+
     full_documents = find_documents(document_ids)
     training_data = produce_training_data(bm25_scores, full_queries, full_documents, ef)
     write_out_training_data(output_directory, training_data)
 
 
-# main()
