@@ -214,9 +214,9 @@ def produce_training_data(scores: dict, queries: dict, documents: dict, ef: Enti
 
                 document_annotation_count = document_annotation_count + str(count)
 
-            training_item = [query_category, query_thread, query_text, query_username, query_annotations,
+            training_item = [query_category, query_thread, query_id, query_text, query_username, query_annotations,
                              query_annotation_count,
-                             document_category, document_thread, document_text, document_is_doctor_reply,
+                             document_category, document_id, document_thread, document_text, document_is_doctor_reply,
                              document_number_votes_h, document_number_votes_s, document_number_votes_t,
                              document_username, document_user_status, document_annotations, document_annotation_count,
                              relationships,
@@ -254,8 +254,8 @@ def write_out_training_data(output_path: str, data: list) -> None:
     with open(os.path.join(output_path, output_filename), "w+", encoding="utf8") as training_file:
 
         training_file.write(
-            "query_category" + "\t" + "query_thread" + "\t" + "query_text" + "\t" + "query_username" + "\t" + "query_annotations" + "\t" + all_types + "\t" +
-            "document_category" + "\t" + "document_thread" + "\t" + "document_text" + "\t" + "document_is_doctor_reply" + "\t" +
+            "query_category" + "\t" + "query_thread" + "\t" + "query_id" + "\t" + "query_text" + "\t" + "query_username" + "\t" + "query_annotations" + "\t" + all_types + "\t" +
+            "document_category" + "\t" + "document_id" + "\t" + "document_thread" + "\t" + "document_text" + "\t" + "document_is_doctor_reply" + "\t" +
             "document_number_votes_h" + "\t" + "document_number_votes_s" + "\t" + "document_number_votes_t" + "\t" +
             "document_username" + "\t" + "document_user_status" + "\t" + "document_annotations" + "\t" + all_types_d + "\t" + "relationships_list" + "\t" +
             "bm25_relevant" + "\t" + "bm25_score" + "\n")
