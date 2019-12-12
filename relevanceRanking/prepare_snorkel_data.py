@@ -6,6 +6,7 @@ import os
 import json
 import platform
 import random
+import multiprocessing
 from relevanceRanking.entities_info import EntityInfo
 from relevanceRanking.make_queries_rank import make_queries, extract_query, get_entity_code
 from relevanceRanking.connect_to_kb import informative_entity_types
@@ -20,19 +21,19 @@ if on_server:
     starting_file = "run.ehf.titles.1000.0.txt"
     data_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
     output_directory = "/home/fadamik/Documents/"
-    output_filename = "training_data_snorkel_ehf_100k_titles.txt"
+    output_filename = "training_data_thread_test.txt"
     query_numbers_location = '/home/fadamik/Documents/query_numbers_ehf.json'
 
 else:
     starting_directory = "m:/build-attempt/anserini/runs.ehf.titles.1000"
-    starting_file = "run.ef-all.bm25.reduced.txt"
-    data_directory = "n:/ehealthforum/json-annotated/"
+    starting_file = "run.ehf.titles.1000.0.txt"
+    data_directory = "n:/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
     output_directory = "d:/downloads/json/ehealthforum/trac"
-    output_filename = "training_data_snorkel_test_rel.txt"
-    query_numbers_location = 'd:/downloads/json/ehealthforum/trac/query_numbers.json'
+    output_filename = "training_data_snorkel_test_multiproc.txt"
+    query_numbers_location = 'm:/Documents/query_numbers_ehf.json'
 
-NUMBER_OF_RESULT_FILES = 79
-NUMBER_QUERIES = 200  # * number of result files
+NUMBER_OF_RESULT_FILES = 1
+NUMBER_QUERIES = 20 # * number of result files
 NUMBER_DOCS_PER_QUERY = 10
 NUMBER_HITS_IN_FILE = 1000
 
@@ -77,7 +78,7 @@ def make_queries(query_ids: list, ef: EntityInfo) -> dict:
 
     for query_id in query_ids:
         folder = str(int(query_id, 10) // 1000)
-        filename = query_id + ".json"
+        filename = str(query_id) + ".json"
 
         try:
             with open(os.path.join(data_directory, folder, filename), "r", encoding="utf8") as file:
@@ -165,7 +166,7 @@ def produce_training_data(scores: dict, queries: dict, documents: dict, ef: Enti
             query_text = query['text'].replace('\t', '')
             query_username = query['username']
             query_annotation_count = ""
-            for index, count in enumerate(make_annotation_counts(query['annotations'], ef)):
+            for index, count in enumerate(make_annotation_types(query['annotations'], ef)):
                 if index > 0:
                     query_annotation_count = query_annotation_count + '\t'
 
@@ -208,7 +209,7 @@ def produce_training_data(scores: dict, queries: dict, documents: dict, ef: Enti
             document_is_doctor_reply = document['mdReply']
 
             document_annotation_count = ""
-            for index, count in enumerate(make_annotation_counts(document['annotations'], ef)):
+            for index, count in enumerate(make_annotation_types(document['annotations'], ef)):
                 if index > 0:
                     document_annotation_count = document_annotation_count + '\t'
 
@@ -231,7 +232,7 @@ def produce_training_data(scores: dict, queries: dict, documents: dict, ef: Enti
     return training_data
 
 
-def make_annotation_counts(annotations: list, entity_info: EntityInfo) -> list:
+def make_annotation_types(annotations: list, entity_info: EntityInfo) -> list:
     types_counts = {}
 
     for entity in informative_entity_types:
@@ -271,7 +272,14 @@ def write_out_training_data(output_path: str, data: list) -> None:
     print("Wrote training data to file: " + os.path.join(output_path, output_filename))
 
 
-def main():
+def read_scores(process_data: dict, return_dictionary: dict):
+    for key in process_data:
+        return_dictionary[key] = read_score_file(process_data[key],
+                                                 os.path.join(starting_directory, "run.ehf.titles.1000." + str(key) + ".txt"))
+
+
+if __name__ == '__main__':
+
     ef = EntityInfo()
 
     random.seed(1468)
@@ -279,17 +287,40 @@ def main():
     with open(query_numbers_location, 'r', encoding='utf8') as file:
         query_numbers = json.load(file)
 
-    bm25_scores = {}
+    print("Starting Multiprocessing manager.")
+    manager = multiprocessing.Manager()
+    bm25_scores_multith = manager.dict()
+
+    processes = []
 
     for i in range(NUMBER_OF_RESULT_FILES):
-        print("Now reading queries from file number: " + str(i))
+
+        print('Process ' + str(i) + ' started. Now reading queries from file number: ' + str(i))
         selected_queries = random.sample(query_numbers[i], NUMBER_QUERIES)
-        bm25_scores.update(read_score_file(selected_queries,
-                                           os.path.join(starting_directory, "run.ehf.titles.1000." + str(i) + ".txt")))
+
+        data_as_dict = {i: selected_queries}
+
+        p = multiprocessing.Process(target=read_scores, args=(data_as_dict, bm25_scores_multith))
+
+        processes.append(p)
+        p.start()
+        print()
+
+    for proc in processes:
+        proc.join()
+
+    print("All processes joined.")
+
+    bm25_scores = {}
+
+    for value in bm25_scores_multith.copy().values():
+        for query in value:
+            bm25_scores[query] = value[query]
 
     full_queries = make_queries(list(bm25_scores.keys()), ef)
 
     document_ids = set()
+
     for query in bm25_scores:
         for doc_id in bm25_scores[query].keys():
             document_ids.add(doc_id)
@@ -299,4 +330,3 @@ def main():
     write_out_training_data(output_directory, training_data)
 
 
-main()
