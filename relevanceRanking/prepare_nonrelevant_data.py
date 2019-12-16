@@ -17,59 +17,48 @@ on_server = platform.system() == "Linux"
 
 # Determine file location for running on server and runnning locally
 if on_server:
-    starting_directory = "/home/fadamik/build-attempt/anserini/runs.ehf.titles.1000"
-    starting_file = "run.ehf.titles.1000.0.txt"
+    category_file = '/home/fadamik/Documents/category_maps_ehf.json'
     data_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
-    output_directory = "/home/fadamik/Documents/"
-    output_filename = "training_data_ehf_mt_200k.txt"
-    query_numbers_location = '/home/fadamik/Documents/query_numbers_ehf.json'
+    output_filename = "/home/fadamik/Documents/non-relevant_pairs_ehf.txt"
+    similar_categories_map = '/home/fadamik/Documents/similar-categories-ehf.txt'
+    old_new_categories_map = '/home/fadamik/Documents/ehealthforum_map.json'
+
 
 else:
-    starting_directory = "m:/build-attempt/anserini/runs.ehf.titles.1000"
-    starting_file = "run.ehf.titles.1000.0.txt"
-    data_directory = "n:/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
-    output_directory = "d:/downloads/json/ehealthforum/trac"
-    output_filename = "training_data_snorkel_test_multiproc.txt"
-    query_numbers_location = 'm:/Documents/query_numbers_ehf.json'
+    category_file = 'm:/Documents/category_maps_ehf.json'
+    data_directory = "n:/ehealthforum/json-annotated/"
+    output_filename = "m:/Documents/non-relevant_pairs_ehf.txt"
+    similar_categories_map = 'm:/Documents/similar-categories-ehf.txt'
+    old_new_categories_map = 'm:/Documents/ehealthforum_map.json'
 
-NUMBER_OF_RESULT_FILES = 70
-NUMBER_QUERIES = 3000  # * number of result files
-NUMBER_DOCS_PER_QUERY = 10
-NUMBER_HITS_IN_FILE = 1000
+NUMBER_QUERIES = 100000
+NUMBER_DOCS_PER_QUERY = 2
 
 
 # Read file with BM25 scores and load it as dictionary.
-def read_score_file(query_ids: list, filename: str) -> dict:
-    scores = {}
+def read_json_file(filename: str) -> dict:
+    with open(filename, "r", encoding="utf8") as file:
+        contents = json.load(file)
 
-    with open(os.path.join(starting_directory, filename), "r", encoding="utf8") as file:
+    return contents
+
+
+def read_similar_file(filename: str) -> dict:
+    similar_categories = {}
+
+    with open(filename, 'r', encoding='utf8') as file:
+        header = True
         for line in file:
-
-            line_contents = line.split(" ")
-            query_id = line_contents[0]
-            if query_id not in query_ids:
+            if header:
+                header = False
                 continue
 
-            document_id = line_contents[2]
-            doc_rank = int(line_contents[3], base=10)
-            document_score = line_contents[4]
+            category, sim1, sim2, sim3 = line.split('\t')
+            sim3 = sim3.replace('\n', '')
 
-            if NUMBER_DOCS_PER_QUERY >= doc_rank:
-                relevant = True
-            elif NUMBER_DOCS_PER_QUERY <= doc_rank <= NUMBER_HITS_IN_FILE - NUMBER_DOCS_PER_QUERY:
-                continue
-            elif doc_rank > NUMBER_HITS_IN_FILE - NUMBER_DOCS_PER_QUERY:
-                relevant = False
+            similar_categories[category] = {'1': sim1, '2': sim2, '3': sim3}
 
-            if query_id not in scores:
-                scores[query_id] = {document_id: {'relevant': relevant, 'score': document_score}}
-            else:
-                scores[query_id][document_id] = {'relevant': relevant, 'score': document_score}
-
-            if len(scores) > NUMBER_QUERIES:
-                break
-
-    return scores
+    return similar_categories
 
 
 # Load queries from JSON files based on their IDs and load them into a dictionary.
@@ -81,11 +70,30 @@ def make_queries(query_ids: list, ef: EntityInfo) -> dict:
         filename = str(query_id) + ".json"
 
         try:
+            folder = str(int(query_id, 10) // 1000)
+
             with open(os.path.join(data_directory, folder, filename), "r", encoding="utf8") as file:
                 contents = json.load(file)
+
         except FileNotFoundError as fe:
-            print("File not found:" + os.path.join(data_directory, folder, filename))
-            continue
+            folder = str(int(query_id, 10) // 10000)
+
+            try:
+                with open(os.path.join(data_directory, folder, filename), "r", encoding="utf8") as file:
+                    contents = json.load(file)
+
+            except FileNotFoundError as fe:
+                print("File not found:" + os.path.join(data_directory, folder, filename))
+                folder = str(int(query_id, 10) // 100)
+
+                try:
+                    with open(os.path.join(data_directory, folder, filename), "r", encoding="utf8") as file:
+                        contents = json.load(file)
+
+                except FileNotFoundError as fe:
+                    print("File not found:" + os.path.join(data_directory, folder, filename))
+                    continue
+
 
         query = extract_query(contents, ef)
         if query:
@@ -102,60 +110,74 @@ def find_documents(document_ids: set) -> dict:
 
         reply_nr = int(reply_nr, base=10)
 
-        folder = str(int(thread_id, 10) // 1000)
         filename = thread_id + ".json"
 
         try:
+            folder = str(int(thread_id, 10) // 1000)
+
             with open(os.path.join(data_directory, folder, filename), "r", encoding="utf8") as file:
                 contents = json.load(file)
 
-                documents[doc_id] = {}
-
-                documents[doc_id]['threadId'] = thread_id
-                documents[doc_id]['category'] = contents['commonCategory']
-                documents[doc_id]['mdReply'] = contents['replies'][reply_nr]['mdReply']
-                documents[doc_id]['userStatus'] = contents['replies'][reply_nr]['createdBy']['status']
-                documents[doc_id]['votes-h'] = contents['replies'][reply_nr]['postHelpfulCount']
-                documents[doc_id]['votes-s'] = contents['replies'][reply_nr]['postSupportCount']
-                documents[doc_id]['votes-t'] = contents['replies'][reply_nr]['postThankYouCount']
-                documents[doc_id]['document-text'] = contents['replies'][reply_nr]['postText']
-                documents[doc_id]['username'] = contents['replies'][reply_nr]['createdBy']['username']
-
-                if 'annotationsFull' in contents['replies'][reply_nr]:
-                    documents[doc_id]['annotations'] = []
-                    for annotation in contents['replies'][reply_nr]['annotationsFull']:
-                        (documents[doc_id]['annotations']
-                         .append(get_entity_code(annotation)))
-                else:
-                    documents[doc_id]['annotations'] = []
-
         except FileNotFoundError as fe:
-            print("File not found:" + os.path.join(data_directory, folder, filename))
-            continue
+            folder = str(int(thread_id, 10) // 10000)
+
+            try:
+                with open(os.path.join(data_directory, folder, filename), "r", encoding="utf8") as file:
+                    contents = json.load(file)
+
+            except FileNotFoundError as fe:
+                print("File not found:" + os.path.join(data_directory, folder, filename))
+                folder = str(int(thread_id, 10) // 100)
+
+                try:
+                    with open(os.path.join(data_directory, folder, filename), "r", encoding="utf8") as file:
+                        contents = json.load(file)
+
+                except FileNotFoundError as fe:
+                    print("File not found:" + os.path.join(data_directory, folder, filename))
+                    continue
+
+        documents[doc_id] = {}
+
+        documents[doc_id]['threadId'] = thread_id
+        documents[doc_id]['category'] = contents['commonCategory']
+        documents[doc_id]['mdReply'] = contents['replies'][reply_nr]['mdReply']
+        documents[doc_id]['userStatus'] = contents['replies'][reply_nr]['createdBy']['status']
+        documents[doc_id]['votes-h'] = contents['replies'][reply_nr]['postHelpfulCount']
+        documents[doc_id]['votes-s'] = contents['replies'][reply_nr]['postSupportCount']
+        documents[doc_id]['votes-t'] = contents['replies'][reply_nr]['postThankYouCount']
+        documents[doc_id]['document-text'] = contents['replies'][reply_nr]['postText']
+        documents[doc_id]['username'] = contents['replies'][reply_nr]['createdBy']['username']
+
+        if 'annotationsFull' in contents['replies'][reply_nr]:
+            documents[doc_id]['annotations'] = []
+            for annotation in contents['replies'][reply_nr]['annotationsFull']:
+                (documents[doc_id]['annotations']
+                 .append(get_entity_code(annotation)))
+        else:
+            documents[doc_id]['annotations'] = []
 
     return documents
 
 
 # Create training data by reading the full query, extracting document features in respect to the query and reading
-def produce_training_data(scores: dict, queries: dict, documents: dict, ef: EntityInfo) -> (list, list):
+def produce_training_data(selected: dict, queries: dict, documents: dict, ef: EntityInfo) -> (list, list):
     training_data = []
 
     entity_list = ef.get_entity_relations()
 
-    for query_id in scores:
+    for query_id in selected:
         if query_id in queries:
             query = queries[query_id]
         else:
             continue
-
-        training_data_pool = []
 
         if 'annotatedOriginCategory' in query:
             entity_code = get_entity_code(query['annotatedOriginCategory'])
             if entity_code is not None:
                 query['annotations'].append(entity_code)
 
-        for document_id in scores[query_id]:
+        for document_id in selected[query_id]:
             if document_id in documents:
                 document = documents[document_id]
             else:
@@ -220,14 +242,10 @@ def produce_training_data(scores: dict, queries: dict, documents: dict, ef: Enti
                              document_category, document_id, document_thread, document_text, document_is_doctor_reply,
                              document_number_votes_h, document_number_votes_s, document_number_votes_t,
                              document_username, document_user_status, document_annotations, document_annotation_count,
-                             relationships,
-                             scores[query_id][document_id]['relevant'], scores[query_id][document_id]['score']]
+                             relationships, '0', '0']
 
-            training_data_pool.append(training_item)
+            training_data.append(training_item)
 
-        if len(training_data_pool) == 20:
-            for item in training_data_pool:
-                training_data.append(item)
 
     return training_data
 
@@ -272,60 +290,75 @@ def write_out_training_data(output_path: str, data: list) -> None:
     print("Wrote training data to file: " + os.path.join(output_path, output_filename))
 
 
-def read_scores(process_data: dict, return_dictionary: dict):
-    for key in process_data:
-        return_dictionary[key] = read_score_file(process_data[key],
-                                                 os.path.join(starting_directory, "run.ehf.titles.1000." + str(key) + ".txt"))
+def pair_up(category_map: dict, similar_map: dict) -> list:
+    for category in category_map:
+        random.shuffle(category_map[category]['documents'])
+
+    pairs = {}
+    for category in category_map:
+        similar_category = [similar_map[category]['1'], similar_map[category]['2'], similar_map[category]['3']]
+
+        for query in category_map[category]['queries']:
+            for i in range(0, NUMBER_DOCS_PER_QUERY):
+                if len(category_map[similar_category[0]]['documents']) > 0:
+                    document = category_map[similar_category[0]]['documents'].pop()
+                elif len(category_map[similar_category[1]]['documents']) > 0:
+                    document = category_map[similar_category[1]]['documents'].pop()
+                else:
+                    break
+
+                if query not in pairs:
+                    pairs[query] = [document]
+                else:
+                    pairs[query].append(document)
+
+            if len(category_map[similar_category[0]]['documents']) == 0:
+                break
+
+            if len(pairs) >= NUMBER_QUERIES:
+                break
+
+        if len(pairs) >= NUMBER_QUERIES:
+            break
+
+    return pairs
+
+
+def remap_similar_categories(forum_specific: dict) -> dict:
+    category_mapping = read_json_file(old_new_categories_map)
+    new_mapping = {}
+
+    for category in forum_specific:
+
+        common_category = category_mapping[category]
+
+        new_mapping[common_category] = {}
+        for sim_level in forum_specific[category]:
+            new_mapping[common_category][sim_level] = category_mapping[forum_specific[category][sim_level]]
+
+    return new_mapping
 
 
 if __name__ == '__main__':
 
     ef = EntityInfo()
+    random.seed('1234')
 
-    random.seed(1468)
+    category_files = read_json_file(category_file)
+    similar_map = read_similar_file(similar_categories_map)
 
-    with open(query_numbers_location, 'r', encoding='utf8') as file:
-        query_numbers = json.load(file)
+    similar_map = remap_similar_categories(similar_map)
 
-    print("Starting Multiprocessing manager.")
-    manager = multiprocessing.Manager()
-    bm25_scores_multith = manager.dict()
+    selected_pairs = pair_up(category_files, similar_map)
 
-    processes = []
-
-    for i in range(NUMBER_OF_RESULT_FILES):
-
-        print('Process ' + str(i) + ' started. Now reading queries from file number: ' + str(i))
-        selected_queries = random.sample(query_numbers[i], NUMBER_QUERIES)
-
-        data_as_dict = {i: selected_queries}
-
-        p = multiprocessing.Process(target=read_scores, args=(data_as_dict, bm25_scores_multith))
-
-        processes.append(p)
-        p.start()
-
-    for proc in processes:
-        proc.join()
-
-    print("All processes joined.")
-
-    bm25_scores = {}
-
-    for value in bm25_scores_multith.copy().values():
-        for query in value:
-            bm25_scores[query] = value[query]
-
-    full_queries = make_queries(list(bm25_scores.keys()), ef)
+    full_queries = make_queries(list(selected_pairs.keys()), ef)
 
     document_ids = set()
 
-    for query in bm25_scores:
-        for doc_id in bm25_scores[query].keys():
-            document_ids.add(doc_id)
+    for query in selected_pairs:
+        for post_id in selected_pairs[query]:
+            document_ids.add(post_id)
 
     full_documents = find_documents(document_ids)
-    training_data = produce_training_data(bm25_scores, full_queries, full_documents, ef)
-    write_out_training_data(output_directory, training_data)
-
-
+    training_data = produce_training_data(selected_pairs, full_queries, full_documents, ef)
+    write_out_training_data(output_filename, training_data)
