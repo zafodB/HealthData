@@ -17,7 +17,7 @@ on_server = platform.system() == "Linux"
 
 # Determine file location for running on server and runnning locally
 if on_server:
-    category_file = '/home/fadamik/Documents/category_maps_ehf.json'
+    category_file = '/home/fadamik/Documents/category_maps_ehf_2.json'
     data_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
     output_filename = "/home/fadamik/Documents/non-relevant_pairs_ehf.txt"
     similar_categories_map = '/home/fadamik/Documents/similar-categories-ehf.txt'
@@ -31,8 +31,8 @@ else:
     similar_categories_map = 'm:/Documents/similar-categories-ehf.txt'
     old_new_categories_map = 'm:/Documents/ehealthforum_map.json'
 
-NUMBER_QUERIES = 100000
-NUMBER_DOCS_PER_QUERY = 2
+NUMBER_QUERIES = 150000
+NUMBER_DOCS_PER_QUERY = 3
 
 
 # Read file with BM25 scores and load it as dictionary.
@@ -92,6 +92,12 @@ def make_queries(query_ids: list, ef: EntityInfo) -> dict:
 
                 except FileNotFoundError as fe:
                     print("File not found:" + os.path.join(data_directory, folder, filename))
+
+                    # name_hash = hashlib.md5(name.encode('utf-8'))
+                    # return str(int.from_bytes(name_hash.digest()[:3], byteorder='big'))
+
+
+
                     continue
 
 
@@ -304,6 +310,8 @@ def pair_up(category_map: dict, similar_map: dict) -> list:
                     document = category_map[similar_category[0]]['documents'].pop()
                 elif len(category_map[similar_category[1]]['documents']) > 0:
                     document = category_map[similar_category[1]]['documents'].pop()
+                elif len(category_map[similar_category[2]]['documents']) > 0:
+                    document = category_map[similar_category[2]]['documents'].pop()
                 else:
                     break
 

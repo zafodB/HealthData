@@ -24,10 +24,13 @@ else:
 category_mapping = {}
 processed_files = 0
 
+
 for root, dirs, files in os.walk(starting_directory):
     for file_name in files:
+
         try:
             with open(os.path.join(root, file_name), 'r', encoding='utf8') as file:
+                # print('Now processing file: ' + os.path.join(root, file_name))
                 contents = json.load(file)
 
                 category = contents['commonCategory']
@@ -50,13 +53,13 @@ for root, dirs, files in os.walk(starting_directory):
 
                     category_mapping[category]['documents'] += document_numbers
 
-        except:
-            pass
-
-        processed_files += 1
+            processed_files += 1
+        except IndexError:
+            continue
 
         if processed_files % 100 == 0:
             print("Processed files: " + str(processed_files))
 
-with open(os.path.join(output_directory, 'category_maps_ehf.json'), 'w+', encoding='utf8') as output_file:
+
+with open(os.path.join(output_directory, 'category_maps_ehf_2.json'), 'w+', encoding='utf8') as output_file:
     json.dump(category_mapping, output_file)

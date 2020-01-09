@@ -144,7 +144,6 @@ def loop_through():
                     thread_name = thread['_source']['Title']
 
                     try:
-                        pass
                         json_file_contents = open_file(thread_id, thread_name)
                         updated_content = update_content(json_file_contents, thread)
                         output_to_file(updated_content, thread_id)
