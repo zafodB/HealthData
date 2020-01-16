@@ -21,8 +21,7 @@ if on_server:
     starting_file = "run.ehf.titles.1000.0.txt"
     data_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
     output_directory = "/home/fadamik/Documents/"
-    output_filename = "training_data_ehf_mt_200k.txt"
-    query_numbers_location = '/home/fadamik/Documents/query_numbers_ehf.json'
+    output_filename = "snorkel_pairs_200k_ehf.txt"
 
 else:
     starting_directory = "m:/build-attempt/anserini/runs.ehf.titles.1000"
@@ -30,16 +29,18 @@ else:
     data_directory = "n:/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
     output_directory = "d:/downloads/json/ehealthforum/trac"
     output_filename = "training_data_snorkel_test_multiproc.txt"
-    query_numbers_location = 'm:/Documents/query_numbers_ehf.json'
+    # query_numbers_location = 'm:/Documents/query_numbers_ehf.json'
 
-NUMBER_OF_RESULT_FILES = 70
-NUMBER_QUERIES = 3000  # * number of result files
+# Input
 NUMBER_DOCS_PER_QUERY = 10
 NUMBER_HITS_IN_FILE = 1000
 
+# Output
+NUMBER_OF_RESULT_FILES = 70
+NUMBER_QUERIES_PER_FILE = 30
 
 # Read file with BM25 scores and load it as dictionary.
-def read_score_file(query_ids: list, filename: str) -> dict:
+def read_score_file(filename: str) -> dict:
     scores = {}
 
     with open(os.path.join(starting_directory, filename), "r", encoding="utf8") as file:
@@ -47,8 +48,9 @@ def read_score_file(query_ids: list, filename: str) -> dict:
 
             line_contents = line.split(" ")
             query_id = line_contents[0]
-            if query_id not in query_ids:
-                continue
+
+            # if query_id not in query_ids:
+            #     continue
 
             document_id = line_contents[2]
             doc_rank = int(line_contents[3], base=10)
@@ -66,7 +68,7 @@ def read_score_file(query_ids: list, filename: str) -> dict:
             else:
                 scores[query_id][document_id] = {'relevant': relevant, 'score': document_score}
 
-            if len(scores) > NUMBER_QUERIES:
+            if len(scores) > NUMBER_QUERIES_PER_FILE:
                 break
 
     return scores
@@ -148,12 +150,12 @@ def produce_training_data(scores: dict, queries: dict, documents: dict, ef: Enti
         else:
             continue
 
-        training_data_pool = []
-
         if 'annotatedOriginCategory' in query:
-            entity_code = get_entity_code(query['annotatedOriginCategory'])
-            if entity_code is not None:
-                query['annotations'].append(entity_code)
+            category_annotation = get_entity_code(query['annotatedOriginCategory'])
+            if category_annotation is not None and query['annotations'] is not None:
+                query['annotations'].append(category_annotation)
+            elif category_annotation is not None and query['annotations'] is None:
+                query['annotations'] = [category_annotation]
 
         for document_id in scores[query_id]:
             if document_id in documents:
@@ -178,7 +180,7 @@ def produce_training_data(scores: dict, queries: dict, documents: dict, ef: Enti
                     document_annotations += ";"
                 document_annotations += annotation
 
-            if len(query['annotations']) > 0:
+            if query['annotations'] is not None:
                 query_annotations = ''
                 relationships = ''
                 for index, annotation in enumerate(query['annotations']):
@@ -223,11 +225,7 @@ def produce_training_data(scores: dict, queries: dict, documents: dict, ef: Enti
                              relationships,
                              scores[query_id][document_id]['relevant'], scores[query_id][document_id]['score']]
 
-            training_data_pool.append(training_item)
-
-        if len(training_data_pool) == 20:
-            for item in training_data_pool:
-                training_data.append(item)
+            training_data.append(training_item)
 
     return training_data
 
@@ -238,11 +236,17 @@ def make_annotation_types(annotations: list, entity_info: EntityInfo) -> list:
     for entity in informative_entity_types:
         types_counts[entity] = 0
 
-    for annotation in annotations:
-        types = entity_info.get_entity_types(annotation)
+    if annotations is not None:
+        for annotation in annotations:
+            try:
+                types = entity_info.get_entity_types(annotation)
 
-        for entity_type in types:
-            types_counts[entity_type] += 1
+            except ValueError as ve:
+                print("Value could not be found: " + str(annotation))
+                continue
+
+            for entity_type in types:
+                types_counts[entity_type] += 1
 
     output_counts = []
     for entity in informative_entity_types:
@@ -272,10 +276,8 @@ def write_out_training_data(output_path: str, data: list) -> None:
     print("Wrote training data to file: " + os.path.join(output_path, output_filename))
 
 
-def read_scores(process_data: dict, return_dictionary: dict):
-    for key in process_data:
-        return_dictionary[key] = read_score_file(process_data[key],
-                                                 os.path.join(starting_directory, "run.ehf.titles.1000." + str(key) + ".txt"))
+def read_scores(thread_number: int, return_dictionary: dict):
+    return_dictionary[thread_number] = read_score_file(os.path.join(starting_directory, "run.ehf.titles.1000." + str(thread_number) + ".txt"))
 
 
 if __name__ == '__main__':
@@ -284,8 +286,21 @@ if __name__ == '__main__':
 
     random.seed(1468)
 
-    with open(query_numbers_location, 'r', encoding='utf8') as file:
-        query_numbers = json.load(file)
+    # with open(query_numbers_location, 'r', encoding='utf8') as file:
+    #     query_numbers = json.load(file)
+    #
+    # # breakpoint()
+    #
+    # selected_queries = []
+    # for i in range(NUMBER_OF_RESULT_FILES):
+    #     selected_queries.append([])
+    #
+    #     random.shuffle(query_numbers)
+    #     for _ in range(NUMBER_QUERIES_PER_FILE):
+    #         selected_queries[i].append(query_numbers.pop())
+
+    # selected_queries = random.sample(query_numbers[i], NUMBER_QUERIES)
+
 
     print("Starting Multiprocessing manager.")
     manager = multiprocessing.Manager()
@@ -296,11 +311,10 @@ if __name__ == '__main__':
     for i in range(NUMBER_OF_RESULT_FILES):
 
         print('Process ' + str(i) + ' started. Now reading queries from file number: ' + str(i))
-        selected_queries = random.sample(query_numbers[i], NUMBER_QUERIES)
 
-        data_as_dict = {i: selected_queries}
+        # data_as_dict = {i: selected_queries[i]}
 
-        p = multiprocessing.Process(target=read_scores, args=(data_as_dict, bm25_scores_multith))
+        p = multiprocessing.Process(target=read_scores, args=(i, bm25_scores_multith))
 
         processes.append(p)
         p.start()
@@ -309,6 +323,9 @@ if __name__ == '__main__':
         proc.join()
 
     print("All processes joined.")
+
+
+    # import pdb; pdb.set_trace()
 
     bm25_scores = {}
 

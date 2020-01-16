@@ -48,11 +48,12 @@ def extract_query(json_contents: dict, ef: EntityInfo):
         for annotation in json_contents['replies'][0]['annotationsFull']:
             entity = get_entity_code(annotation)
 
-            # print(is_informative("C002344", es))
             if ef.is_informative_entity(entity):
                 annotations.append(entity)
 
-            query['annotations'] = annotations
+        query['annotations'] = annotations
+    else:
+        query['annotations'] = None
 
     post_text = json_contents['replies'][0]['postText']
     length = len(post_text)
@@ -64,11 +65,8 @@ def extract_query(json_contents: dict, ef: EntityInfo):
     if 'annotatedOriginCategory' in json_contents:
         query['annotatedOriginCategory'] = json_contents['annotatedOriginCategory']
 
-    if len(annotations) == 0:
-        return None
-    else:
-        return query
 
+    return query
 
 # Randomly loop through files and select up to 'max_queries' as queries.
 def make_queries(start_dir: str, ef: EntityInfo) -> list:

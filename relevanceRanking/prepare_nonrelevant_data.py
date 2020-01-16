@@ -6,6 +6,7 @@ import os
 import json
 import platform
 import random
+import copy
 import multiprocessing
 from relevanceRanking.entities_info import EntityInfo
 from relevanceRanking.make_queries_rank import make_queries, extract_query, get_entity_code
@@ -19,20 +20,23 @@ on_server = platform.system() == "Linux"
 if on_server:
     category_file = '/home/fadamik/Documents/category_maps_ehf_2.json'
     data_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
-    output_filename = "/home/fadamik/Documents/non-relevant_pairs_ehf.txt"
+    output_filename = "/home/fadamik/Documents/non-relevant_pairs_200k_ehf.txt"
     similar_categories_map = '/home/fadamik/Documents/similar-categories-ehf.txt'
     old_new_categories_map = '/home/fadamik/Documents/ehealthforum_map.json'
-
+    used_queries_count_path = '/home/fadamik/Documents/used_queries_relevant.txt'
+    produced_query_counts_path = '/home/fadamik/Documents/produced_queries_non-relevant.json'
 
 else:
     category_file = 'm:/Documents/category_maps_ehf.json'
     data_directory = "n:/ehealthforum/json-annotated/"
-    output_filename = "m:/Documents/non-relevant_pairs_ehf.txt"
+    output_filename = "m:/Documents/non-relevant_pairs_200k_ehf.txt"
     similar_categories_map = 'm:/Documents/similar-categories-ehf.txt'
     old_new_categories_map = 'm:/Documents/ehealthforum_map.json'
+    used_queries_count_path = 'd:/downloads/json/ehealthforum/trac/used_queries_relevant.txt'
+    produced_query_counts_path = 'd:/downloads/json/ehealthforum/trac/produced_queries_non-relevant.json'
 
-NUMBER_QUERIES = 150000
-NUMBER_DOCS_PER_QUERY = 3
+NUMBER_QUERIES = 250000
+# NUMBER_DOCS_PER_QUERY = 3
 
 
 # Read file with BM25 scores and load it as dictionary.
@@ -93,13 +97,7 @@ def make_queries(query_ids: list, ef: EntityInfo) -> dict:
                 except FileNotFoundError as fe:
                     print("File not found:" + os.path.join(data_directory, folder, filename))
 
-                    # name_hash = hashlib.md5(name.encode('utf-8'))
-                    # return str(int.from_bytes(name_hash.digest()[:3], byteorder='big'))
-
-
-
                     continue
-
 
         query = extract_query(contents, ef)
         if query:
@@ -179,9 +177,11 @@ def produce_training_data(selected: dict, queries: dict, documents: dict, ef: En
             continue
 
         if 'annotatedOriginCategory' in query:
-            entity_code = get_entity_code(query['annotatedOriginCategory'])
-            if entity_code is not None:
-                query['annotations'].append(entity_code)
+            category_annotation = get_entity_code(query['annotatedOriginCategory'])
+            if category_annotation is not None and query['annotations'] is not None:
+                query['annotations'].append(category_annotation)
+            elif category_annotation is not None and query['annotations'] is None:
+                query['annotations'] = [category_annotation]
 
         for document_id in selected[query_id]:
             if document_id in documents:
@@ -206,7 +206,7 @@ def produce_training_data(selected: dict, queries: dict, documents: dict, ef: En
                     document_annotations += ";"
                 document_annotations += annotation
 
-            if len(query['annotations']) > 0:
+            if query['annotations'] is not None:
                 query_annotations = ''
                 relationships = ''
                 for index, annotation in enumerate(query['annotations']):
@@ -252,7 +252,6 @@ def produce_training_data(selected: dict, queries: dict, documents: dict, ef: En
 
             training_data.append(training_item)
 
-
     return training_data
 
 
@@ -262,11 +261,17 @@ def make_annotation_types(annotations: list, entity_info: EntityInfo) -> list:
     for entity in informative_entity_types:
         types_counts[entity] = 0
 
-    for annotation in annotations:
-        types = entity_info.get_entity_types(annotation)
+    if annotations is not None:
+        for annotation in annotations:
+            try:
+                types = entity_info.get_entity_types(annotation)
 
-        for entity_type in types:
-            types_counts[entity_type] += 1
+            except ValueError as ve:
+                print("Value could not be found: " + str(annotation))
+                continue
+
+            for entity_type in types:
+                types_counts[entity_type] += 1
 
     output_counts = []
     for entity in informative_entity_types:
@@ -296,16 +301,21 @@ def write_out_training_data(output_path: str, data: list) -> None:
     print("Wrote training data to file: " + os.path.join(output_path, output_filename))
 
 
-def pair_up(category_map: dict, similar_map: dict) -> list:
+def pair_up(category_map: dict, similar_map: dict, used_queries_count: dict) -> list:
     for category in category_map:
         random.shuffle(category_map[category]['documents'])
+
+    category_map_untouched = copy.deepcopy(category_map)
 
     pairs = {}
     for category in category_map:
         similar_category = [similar_map[category]['1'], similar_map[category]['2'], similar_map[category]['3']]
 
         for query in category_map[category]['queries']:
-            for i in range(0, NUMBER_DOCS_PER_QUERY):
+            if query not in used_queries_count:
+                continue
+
+            for i in range(0, used_queries_count[query]):
                 if len(category_map[similar_category[0]]['documents']) > 0:
                     document = category_map[similar_category[0]]['documents'].pop()
                 elif len(category_map[similar_category[1]]['documents']) > 0:
@@ -313,26 +323,26 @@ def pair_up(category_map: dict, similar_map: dict) -> list:
                 elif len(category_map[similar_category[2]]['documents']) > 0:
                     document = category_map[similar_category[2]]['documents'].pop()
                 else:
-                    break
+                    print('Ran out of unique doc. Using a random similar document.')
+                    document = random.choice(category_map_untouched[similar_category[0]]['documents'])
 
                 if query not in pairs:
                     pairs[query] = [document]
                 else:
                     pairs[query].append(document)
 
-            if len(category_map[similar_category[0]]['documents']) == 0:
-                break
-
-            if len(pairs) >= NUMBER_QUERIES:
-                break
-
-        if len(pairs) >= NUMBER_QUERIES:
-            break
-
     return pairs
 
 
 def remap_similar_categories(forum_specific: dict) -> dict:
+    """
+    Pairs of similar categories are created using forum-specific category names, whereas JSON files contain the unified,
+    forum-independent category name. This functions converts the mapping of forum specific names to mapping of forum-
+    independent names.
+
+    @param forum_specific: Map of forum-specific similar categories.
+    @return: Map of forum independent categories.
+    """
     category_mapping = read_json_file(old_new_categories_map)
     new_mapping = {}
 
@@ -354,10 +364,14 @@ if __name__ == '__main__':
 
     category_files = read_json_file(category_file)
     similar_map = read_similar_file(similar_categories_map)
+    used_queries_counts = read_json_file(used_queries_count_path)
 
     similar_map = remap_similar_categories(similar_map)
 
-    selected_pairs = pair_up(category_files, similar_map)
+    selected_pairs = pair_up(category_files, similar_map, used_queries_counts)
+
+    with open(produced_query_counts_path, 'w+', encoding='utf8') as counts_file:
+        json.dump(selected_pairs, counts_file)
 
     full_queries = make_queries(list(selected_pairs.keys()), ef)
 
