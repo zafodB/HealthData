@@ -21,21 +21,28 @@ on_server = platform.system() == "Linux"
 
 # Determine file location for running on server and runnning locally
 if on_server:
+    # INPUT
     starting_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
-    output_directory_data = "/scratch/GW/pool0/fadamik/ehealthforum/trac/noent2/data"
-    output_directory_queries = "/scratch/GW/pool0/fadamik/ehealthforum/trac/noent2/reduced-queries"
     used_queries_r_path = '/home/fadamik/Documents/used_queries_relevant_test.json'
     used_queries_n_path = '/home/fadamik/Documents/used_queries_non-relevant_test.json'
 
+    # OUTPUT
+    output_directory_data = "/scratch/GW/pool0/fadamik/ehealthforum/trac/noent2/data"
+    output_directory_queries = "/scratch/GW/pool0/fadamik/ehealthforum/trac/noent2/reduced-queries"
+
 else:
+    # INPUT
     starting_directory = "D:/Downloads/json/ehealthforum/json-annotated"
+    used_queries_r_path = 'd:/Downloads/json/ehealthforum/trac/used_queries_relevant.json'
+    used_queries_n_path = 'd:/Downloads/json/ehealthforum/trac/used_queries_non-relevant.json'
+
+    # OUTPUT
     output_directory_data = "D:/Downloads/json/ehealthforum/trac/data"
     output_directory_queries = "D:/Downloads/json/ehealthforum/trac/queries"
-    used_queries_r_path = 'd:/Downloads/json/ehealthforum/trac/used_queries_relevant_test.txt'
-    used_queries_n_path = 'd:/Downloads/json/ehealthforum/trac/used_queries_non-relevant_test.txt'
 
-WRITE_QUERIES = True
-WRITE_DOCUMENTS = False
+
+WRITE_QUERIES = False
+WRITE_DOCUMENTS = True
 
 if WRITE_QUERIES:
     used_queries = set()
@@ -56,7 +63,7 @@ if WRITE_QUERIES:
     query_file = open(os.path.join(output_directory_queries, "queries0_test.txt"), "w+", encoding="utf8")
 
 if WRITE_DOCUMENTS:
-    data_file = open(os.path.join(output_directory_data, "data1.trac"), "w+", encoding="utf8")
+    data_file = open(os.path.join(output_directory_data, "data0.trac"), "w+", encoding="utf8")
 
 processed_files = 0
 error_files = 0
@@ -73,28 +80,34 @@ ef = EntityInfo()
 for root, dirs, files in os.walk(starting_directory):
     for file_name in files:
         try:
+            if file_name == '188639.json':
+                import pdb
+                pdb.set_trace()
+
             with open(os.path.join(root, file_name), "r", encoding="utf8") as file:
                 content = json.loads(file.read())
 
+            # Write out progress every bunch of files.
             processed_files += 1
             if processed_files % 100 == 0:
                 print("Processed files: " + str(processed_files))
 
-            query = content['replies'][0]
-            topic_no = str(content['threadId'])
+            if WRITE_QUERIES:
+                query = content['replies'][0]
+                topic_no = str(content['threadId'])
 
-            if topic_no not in used_queries:
-                continue
+                if topic_no not in used_queries:
+                    continue
 
-            query_text = content['title']
+                query_text = content['title']
 
-            word_count = len(re.findall(r'\w+', query_text))
+                word_count = len(re.findall(r'\w+', query_text))
 
-            if WRITE_QUERIES and word_count < 1020:
-                query_file.write(
-                    "<top>\n\n<num> Number: " + topic_no + "\n<title>\n" + query_text + "\n\n<desc> Description:\nNA\n\n<narr> Narrative:\nNA\n\n</top>\n")
+                if word_count < 1020:
+                    query_file.write(
+                        "<top>\n\n<num> Number: " + topic_no + "\n<title>\n" + query_text + "\n\n<desc> Description:\nNA\n\n<narr> Narrative:\nNA\n\n</top>\n")
 
-                queries_written += 1
+                    queries_written += 1
 
             # # Write out queries to a file every bunch of queries.
             # if queries_written % 3600 == 0:
@@ -123,9 +136,6 @@ for root, dirs, files in os.walk(starting_directory):
                         data_file = open(
                             os.path.join(output_directory_data, "data" + str(documents_written // 1000) + ".trac"),
                             "w+", encoding="utf8")
-
-            # Write out progress every bunch of files.
-
 
         except Exception as e:
             print("Error processing file: " + os.path.join(root, file_name) + ": " + str(e))
