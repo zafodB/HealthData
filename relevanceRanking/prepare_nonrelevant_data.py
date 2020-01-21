@@ -18,22 +18,28 @@ on_server = platform.system() == "Linux"
 
 # Determine file location for running on server and runnning locally
 if on_server:
+    # INPUT
     category_file = '/home/fadamik/Documents/category_maps_ehf_2.json'
     data_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
-    output_filename = "/home/fadamik/Documents/non-relevant_pairs_200k_ehf.txt"
     similar_categories_map = '/home/fadamik/Documents/similar-categories-ehf.txt'
     old_new_categories_map = '/home/fadamik/Documents/ehealthforum_map.json'
     used_queries_count_path = '/home/fadamik/Documents/used_queries_relevant.txt'
+
+    # OUTPUT
+    output_filename = "/home/fadamik/Documents/non-relevant_pairs_200k_ehf.txt"
     produced_query_counts_path = '/home/fadamik/Documents/produced_queries_non-relevant.json'
 
 else:
+    # INPUT
     category_file = 'm:/Documents/category_maps_ehf.json'
     data_directory = "n:/ehealthforum/json-annotated/"
-    output_filename = "m:/Documents/non-relevant_pairs_200k_ehf.txt"
     similar_categories_map = 'm:/Documents/similar-categories-ehf.txt'
     old_new_categories_map = 'm:/Documents/ehealthforum_map.json'
-    used_queries_count_path = 'd:/downloads/json/ehealthforum/trac/used_queries_relevant.txt'
-    produced_query_counts_path = 'd:/downloads/json/ehealthforum/trac/produced_queries_non-relevant.json'
+    used_queries_count_path = 'd:/downloads/json/ehealthforum/trac/used_queries_relevant_test.json'
+
+    # OUTPUT
+    output_filename = "m:/Documents/non-relevant_pairs_200k_ehf.txt"
+    produced_query_counts_path = 'd:/downloads/json/ehealthforum/trac/produced_queries_non-relevant_test.json'
 
 NUMBER_QUERIES = 250000
 # NUMBER_DOCS_PER_QUERY = 3
@@ -302,6 +308,8 @@ def write_out_training_data(output_path: str, data: list) -> None:
 
 
 def pair_up(category_map: dict, similar_map: dict, used_queries_count: dict) -> list:
+    print('Started making pairs.')
+
     for category in category_map:
         random.shuffle(category_map[category]['documents'])
 
@@ -323,11 +331,15 @@ def pair_up(category_map: dict, similar_map: dict, used_queries_count: dict) -> 
                 elif len(category_map[similar_category[2]]['documents']) > 0:
                     document = category_map[similar_category[2]]['documents'].pop()
                 else:
-                    print('Ran out of unique doc. Using a random similar document.')
+                    # print('Ran out of unique doc. Using a random similar document.')
                     document = random.choice(category_map_untouched[similar_category[0]]['documents'])
 
                 if query not in pairs:
                     pairs[query] = [document]
+                elif document in pairs[query]:
+                    # TODO find out why there are still duplicate documents for one query
+
+                    continue
                 else:
                     pairs[query].append(document)
 
@@ -343,6 +355,9 @@ def remap_similar_categories(forum_specific: dict) -> dict:
     @param forum_specific: Map of forum-specific similar categories.
     @return: Map of forum independent categories.
     """
+
+    print('Started category remapping.')
+
     category_mapping = read_json_file(old_new_categories_map)
     new_mapping = {}
 

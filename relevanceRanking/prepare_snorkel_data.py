@@ -17,19 +17,24 @@ on_server = platform.system() == "Linux"
 
 # Determine file location for running on server and runnning locally
 if on_server:
+    # INPUT
     starting_directory = "/home/fadamik/build-attempt/anserini/runs.ehf.titles.1000"
     starting_file = "run.ehf.titles.1000.0.txt"
     data_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
+
+    # OUTPUT
     output_directory = "/home/fadamik/Documents/"
     output_filename = "snorkel_pairs_200k_ehf.txt"
 
 else:
+    # INPUT
     starting_directory = "m:/build-attempt/anserini/runs.ehf.titles.1000"
     starting_file = "run.ehf.titles.1000.0.txt"
     data_directory = "n:/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
+
+    # OUTPUT
     output_directory = "d:/downloads/json/ehealthforum/trac"
     output_filename = "training_data_snorkel_test_multiproc.txt"
-    # query_numbers_location = 'm:/Documents/query_numbers_ehf.json'
 
 # Input
 NUMBER_DOCS_PER_QUERY = 10
@@ -37,7 +42,8 @@ NUMBER_HITS_IN_FILE = 1000
 
 # Output
 NUMBER_OF_RESULT_FILES = 70
-NUMBER_QUERIES_PER_FILE = 30
+NUMBER_QUERIES_PER_FILE = 3000
+
 
 # Read file with BM25 scores and load it as dictionary.
 def read_score_file(filename: str) -> dict:
@@ -74,8 +80,14 @@ def read_score_file(filename: str) -> dict:
     return scores
 
 
-# Load queries from JSON files based on their IDs and load them into a dictionary.
 def make_queries(query_ids: list, ef: EntityInfo) -> dict:
+    """
+    Load queries from JSON files based on their IDs and load them into a dictionary.
+
+    @param query_ids: IDs of the
+    @param ef:
+    @return:
+    """
     queries = {}
 
     for query_id in query_ids:
@@ -96,8 +108,13 @@ def make_queries(query_ids: list, ef: EntityInfo) -> dict:
     return queries
 
 
-# Extract document features from JSON files based on their IDs.
 def find_documents(document_ids: set) -> dict:
+    """
+    Extract document features from JSON files based on their IDs.
+
+    @param document_ids: IDs of the documents to open
+    @return: Contents of the JSON files as dictionary
+    """
     documents = {}
     for doc_id in document_ids:
         thread_id, reply_nr = doc_id.replace("EF-", "").split("r")
@@ -138,8 +155,16 @@ def find_documents(document_ids: set) -> dict:
     return documents
 
 
-# Create training data by reading the full query, extracting document features in respect to the query and reading
-def produce_training_data(scores: dict, queries: dict, documents: dict, ef: EntityInfo) -> (list, list):
+def produce_training_data(scores: dict, queries: dict, documents: dict, ef: EntityInfo) -> list:
+    """
+    Create training data by reading the full query, extracting document features in respect to the query and reading
+
+    @param scores: BM25 scores of top 1000 documents for each query.
+    @param queries: Queries to be extracted
+    @param documents: Documents to be extracted
+    @param ef:  EntityInfo connector
+    @return: List of training items (rows)
+    """
     training_data = []
 
     entity_list = ef.get_entity_relations()
