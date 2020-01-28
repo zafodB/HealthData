@@ -1,6 +1,7 @@
-'''
+"""
  * Created by filip on 23/10/2019
-'''
+ TODO write code comments
+"""
 
 import os
 import json
@@ -47,6 +48,11 @@ NUMBER_QUERIES_PER_FILE = 3000
 
 # Read file with BM25 scores and load it as dictionary.
 def read_score_file(filename: str) -> dict:
+    """
+
+    @param filename:
+    @return:
+    """
     scores = {}
 
     with open(os.path.join(starting_directory, filename), "r", encoding="utf8") as file:
@@ -152,6 +158,7 @@ def find_documents(document_ids: set) -> dict:
             print("File not found:" + os.path.join(data_directory, folder, filename))
             continue
 
+    print("Finished looking up documents.")
     return documents
 
 
@@ -256,6 +263,12 @@ def produce_training_data(scores: dict, queries: dict, documents: dict, ef: Enti
 
 
 def make_annotation_types(annotations: list, entity_info: EntityInfo) -> list:
+    """
+
+    @param annotations:
+    @param entity_info:
+    @return:
+    """
     types_counts = {}
 
     for entity in informative_entity_types:
@@ -281,6 +294,12 @@ def make_annotation_types(annotations: list, entity_info: EntityInfo) -> list:
 
 
 def write_out_training_data(output_path: str, data: list) -> None:
+    """
+
+    @param output_path:
+    @param data:
+    @return:
+    """
     with open(os.path.join(output_path, output_filename), "w+", encoding="utf8") as training_file:
 
         training_file.write(
@@ -302,7 +321,14 @@ def write_out_training_data(output_path: str, data: list) -> None:
 
 
 def read_scores(thread_number: int, return_dictionary: dict):
-    return_dictionary[thread_number] = read_score_file(os.path.join(starting_directory, "run.ehf.titles.1000." + str(thread_number) + ".txt"))
+    """
+
+    @param thread_number:
+    @param return_dictionary:
+    @return:
+    """
+    return_dictionary[thread_number] = read_score_file(os.path.join(starting_directory, "run.ehf.titles.1000." +
+                                                                    str(thread_number) + ".txt"))
 
 
 if __name__ == '__main__':
@@ -311,22 +337,6 @@ if __name__ == '__main__':
 
     random.seed(1468)
 
-    # with open(query_numbers_location, 'r', encoding='utf8') as file:
-    #     query_numbers = json.load(file)
-    #
-    # # breakpoint()
-    #
-    # selected_queries = []
-    # for i in range(NUMBER_OF_RESULT_FILES):
-    #     selected_queries.append([])
-    #
-    #     random.shuffle(query_numbers)
-    #     for _ in range(NUMBER_QUERIES_PER_FILE):
-    #         selected_queries[i].append(query_numbers.pop())
-
-    # selected_queries = random.sample(query_numbers[i], NUMBER_QUERIES)
-
-
     print("Starting Multiprocessing manager.")
     manager = multiprocessing.Manager()
     bm25_scores_multith = manager.dict()
@@ -334,10 +344,7 @@ if __name__ == '__main__':
     processes = []
 
     for i in range(NUMBER_OF_RESULT_FILES):
-
         print('Process ' + str(i) + ' started. Now reading queries from file number: ' + str(i))
-
-        # data_as_dict = {i: selected_queries[i]}
 
         p = multiprocessing.Process(target=read_scores, args=(i, bm25_scores_multith))
 
@@ -348,9 +355,6 @@ if __name__ == '__main__':
         proc.join()
 
     print("All processes joined.")
-
-
-    # import pdb; pdb.set_trace()
 
     bm25_scores = {}
 
@@ -369,5 +373,3 @@ if __name__ == '__main__':
     full_documents = find_documents(document_ids)
     training_data = produce_training_data(bm25_scores, full_queries, full_documents, ef)
     write_out_training_data(output_directory, training_data)
-
-

@@ -1,8 +1,10 @@
-'''
+"""
  * Created by filip on 16/01/2020
-'''
 
-import pandas as pd
+ Reads one qrel file for relevant and one qrel file for non-relevant qrels. Combines these qrels and balances the number
+ of positive and negative jusgements. Then outputs the file to the specified location.
+"""
+
 import platform
 import random
 
@@ -18,18 +20,19 @@ if on_server:
     output_path = '/scratch/GW/pool0/fadamik/ehealthforum/trac/qrels_ehf_all_balanced.txt'
 else:
     # INPUT
-    relevant_qrels_path = 'd:/downloads/json/ehealthforum/trac/qrels_ehf_rel_test.txt'
-    nonrelevant_qrels_path = 'd:/downloads/json/ehealthforum/trac/qrels_ehf_non_test.txt'
+    relevant_qrels_path = 'd:/downloads/json/ehealthforum/trac/qrels_ehf_rel.txt'
+    nonrelevant_qrels_path = 'd:/downloads/json/ehealthforum/trac/qrels_ehf_non.txt'
 
     # OUTPUT
-    output_path = 'd:/downloads/json/ehealthforum/trac/qrels_ehf_all_balanced_test.txt'
+    output_path = 'd:/downloads/json/ehealthforum/trac/qrels_ehf_all_balanced.txt'
 
 # Maximum number of positive and negative qrels per query
-MAX_NUMBER_QRELS = 3
+MAX_NUMBER_QRELS = 20
+
 
 def read_qrel_file(path: str, judgements=None) -> dict:
     """
-     Read relevant or non-relevant qrel file at the specified location.
+     Read the relevant or non-relevant qrel file at the specified location.
 
     @param path: Location of the file to read.
     @param judgements: Dictionary to update with new data (if exists). Default=none
@@ -65,19 +68,14 @@ def balance_classes(judgements: dict) -> dict:
         if '0' not in judgements[query] or '1' not in judgements[query]:
             continue
         else:
-            differece = abs(len(judgements[query]['1']) - len(judgements[query]['0']))
-            if differece > MAX_NUMBER_QRELS:
-                max_qrels = MAX_NUMBER_QRELS
-            else:
-                max_qrels = differece
-
-            if differece > 0 :
-                random.shuffle(judgements[query]['1'])
-                for _ in range(0, max_qrels):
+            if len(judgements[query]['1']) > MAX_NUMBER_QRELS:
+                chop_off = len(judgements[query]['1']) - MAX_NUMBER_QRELS
+                for _ in range(0, chop_off):
                     judgements[query]['1'].pop()
-            else:
-                random.shuffle(judgements[query]['0'])
-                for _ in range(0, max_qrels):
+
+            if len(judgements[query]['0']) > MAX_NUMBER_QRELS:
+                chop_off = len(judgements[query]['0']) - MAX_NUMBER_QRELS
+                for _ in range(0, chop_off):
                     judgements[query]['0'].pop()
 
     return judgements

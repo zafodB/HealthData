@@ -4,7 +4,7 @@
  Reads JSON files from the specified directory. Creates *.trac files containing of arbitrary document ID,
  and reply text. Writes 1000 documents per one .trac file.
 
- Reads file specifing used queires and creates query files for the used queries.
+ Reads file specifying used queires and creates query files for the used queries.
 
  Creates a query file consisting of topic number and the text of the first post in the thread. Skips queries without
  informative entities.
@@ -23,8 +23,8 @@ on_server = platform.system() == "Linux"
 if on_server:
     # INPUT
     starting_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
-    used_queries_r_path = '/home/fadamik/Documents/used_queries_relevant_test.json'
-    used_queries_n_path = '/home/fadamik/Documents/used_queries_non-relevant_test.json'
+    used_queries_r_path = '/home/fadamik/Documents/used_queries_relevant.json'
+    used_queries_n_path = '/home/fadamik/Documents/used_queries_non-relevant.json'
 
     # OUTPUT
     output_directory_data = "/scratch/GW/pool0/fadamik/ehealthforum/trac/noent2/data"
@@ -41,8 +41,8 @@ else:
     output_directory_queries = "D:/Downloads/json/ehealthforum/trac/queries"
 
 
-WRITE_QUERIES = False
-WRITE_DOCUMENTS = True
+WRITE_QUERIES = True
+WRITE_DOCUMENTS = False
 
 if WRITE_QUERIES:
     used_queries = set()
@@ -50,17 +50,12 @@ if WRITE_QUERIES:
     with open(used_queries_r_path, 'r', encoding='utf8') as used_queries_file:
         contents = json.load(used_queries_file)
         used_queries.update(contents.keys())
-        # for line in used_queries_file:
-        #     used_queries.add(line.replace('\n', ''))
 
     with open(used_queries_n_path, 'r', encoding='utf8') as used_queries_file:
         contents = json.load(used_queries_file)
         used_queries.update(contents.keys())
 
-        # for line in used_queries_file:
-        #     used_queries.add(line.replace('\n', ''))
-
-    query_file = open(os.path.join(output_directory_queries, "queries0_test.txt"), "w+", encoding="utf8")
+    query_file = open(os.path.join(output_directory_queries, "queries0.txt"), "w+", encoding="utf8")
 
 if WRITE_DOCUMENTS:
     data_file = open(os.path.join(output_directory_data, "data0.trac"), "w+", encoding="utf8")
@@ -69,7 +64,6 @@ processed_files = 0
 error_files = 0
 documents_written = 0
 queries_written = 0
-
 
 pattern = re.compile('C[0-9]{3,}')
 pattern_long = re.compile("\[\[C[0-9]+\|[\w\s]{1,}\]\]")
@@ -80,10 +74,6 @@ ef = EntityInfo()
 for root, dirs, files in os.walk(starting_directory):
     for file_name in files:
         try:
-            if file_name == '188639.json':
-                import pdb
-                pdb.set_trace()
-
             with open(os.path.join(root, file_name), "r", encoding="utf8") as file:
                 content = json.loads(file.read())
 
@@ -96,24 +86,19 @@ for root, dirs, files in os.walk(starting_directory):
                 query = content['replies'][0]
                 topic_no = str(content['threadId'])
 
-                if topic_no not in used_queries:
-                    continue
+                if topic_no in used_queries:
 
-                query_text = content['title']
+                    query_text = content['title']
 
-                word_count = len(re.findall(r'\w+', query_text))
+                    query_text.replace('-', '').replace(')', '').replace('(', '').replace(':', '').replace('/', '')
 
-                if word_count < 1020:
-                    query_file.write(
-                        "<top>\n\n<num> Number: " + topic_no + "\n<title>\n" + query_text + "\n\n<desc> Description:\nNA\n\n<narr> Narrative:\nNA\n\n</top>\n")
+                    word_count = len(re.findall(r'\w+', query_text))
 
-                    queries_written += 1
+                    if word_count < 1020:
+                        query_file.write(
+                            "<top>\n\n<num> Number: " + topic_no + "\n<title>\n" + query_text + "\n\n<desc> Description:\nNA\n\n<narr> Narrative:\nNA\n\n</top>\n")
 
-            # # Write out queries to a file every bunch of queries.
-            # if queries_written % 3600 == 0:
-            #     query_file.close()
-            #     file_number = queries_written // 3600
-            #     query_file = open(os.path.join(output_directory_queries, "queries" + str(file_number) + ".txt"), "w+", encoding="utf8")
+                        queries_written += 1
 
             # Process all replies in the file as separate documents.
             if WRITE_DOCUMENTS:
@@ -124,13 +109,15 @@ for root, dirs, files in os.walk(starting_directory):
                     document_id = str(int(content['threadId'], base=10)) + "r" + str(index)
                     document_text = reply['postText']
 
+                    document_text.replace('-', '').replace(')', '').replace('(', '').replace(':', '').replace('/', '')
+
                     data_file.write("<DOC>\n<DOCNO>EF-" + document_id + "</DOCNO>\n")
                     data_file.write("<TEXT>\n" + document_text + "\n</TEXT>\n")
                     data_file.write("</DOC>\n")
 
                     documents_written += 1
 
-                    # Close a file (so it doesn't get too big) and open a new one every bunch of documents.
+                    # Close a file (so it doesn't get too big) and open a new one every thousand of documents written.
                     if documents_written % 1000 == 0:
                         data_file.close()
                         data_file = open(
@@ -142,6 +129,7 @@ for root, dirs, files in os.walk(starting_directory):
             traceback.print_exc()
             error_files += 1
 
+print('Number of queries written: ' + str(queries_written))
 if WRITE_DOCUMENTS:
     data_file.close()
 

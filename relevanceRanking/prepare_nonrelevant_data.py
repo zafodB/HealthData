@@ -1,6 +1,22 @@
-'''
+"""
  * Created by filip on 23/10/2019
-'''
+This script prepares non-relevant pairs of data, based on similar categories. The produced pairs serve as input to
+Snorkel (to filter out possibly relevant pairs).
+
+Input:
+    * List of query IDs sorted by categories (JSON) - category_file
+    * Map of similar categories, based on TF-IDF (TXT) - similar_categories_map - must be properly selected between
+    HealthBoards and eHealthForum.
+    * Map of forum specific categories to unified list of categories (JSON) - old_new_categories_map - must be properly
+    selected between HealthBoards and eHealthForum.
+    * List of queries used to create relevant pairs (we need a non-relevant example for every relevant example)
+    (JSON) - used_queries_count_path
+    * Annotated JSON data files - data_directory
+
+Output:
+    * Non-relevant pairs (one row is one query-document pair with all features), tab-separated
+
+"""
 
 import os
 import json
@@ -20,33 +36,33 @@ on_server = platform.system() == "Linux"
 if on_server:
     # INPUT
     category_file = '/home/fadamik/Documents/category_maps_ehf_2.json'
-    data_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
     similar_categories_map = '/home/fadamik/Documents/similar-categories-ehf.txt'
     old_new_categories_map = '/home/fadamik/Documents/ehealthforum_map.json'
-    used_queries_count_path = '/home/fadamik/Documents/used_queries_relevant.txt'
+    used_queries_count_path = '/home/fadamik/Documents/used_queries_relevant.json'
+    data_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
 
     # OUTPUT
     output_filename = "/home/fadamik/Documents/non-relevant_pairs_200k_ehf.txt"
-    produced_query_counts_path = '/home/fadamik/Documents/produced_queries_non-relevant.json'
 
 else:
     # INPUT
     category_file = 'm:/Documents/category_maps_ehf.json'
-    data_directory = "n:/ehealthforum/json-annotated/"
     similar_categories_map = 'm:/Documents/similar-categories-ehf.txt'
     old_new_categories_map = 'm:/Documents/ehealthforum_map.json'
     used_queries_count_path = 'd:/downloads/json/ehealthforum/trac/used_queries_relevant_test.json'
+    data_directory = "n:/ehealthforum/json-annotated/"
 
     # OUTPUT
     output_filename = "m:/Documents/non-relevant_pairs_200k_ehf.txt"
-    produced_query_counts_path = 'd:/downloads/json/ehealthforum/trac/produced_queries_non-relevant_test.json'
-
-NUMBER_QUERIES = 250000
-# NUMBER_DOCS_PER_QUERY = 3
 
 
-# Read file with BM25 scores and load it as dictionary.
 def read_json_file(filename: str) -> dict:
+    """
+    Open and parse a JSON file and return its contents.
+
+    @param filename: Path to file to open.
+    @return: Contents of JSON file as a dictionary.
+    """
     with open(filename, "r", encoding="utf8") as file:
         contents = json.load(file)
 
@@ -54,6 +70,12 @@ def read_json_file(filename: str) -> dict:
 
 
 def read_similar_file(filename: str) -> dict:
+    """
+    Open and read the file with similar categories (tab-separated).
+
+    @param filename: Path to the file to read
+    @return: Similar categories as dictionary
+    """
     similar_categories = {}
 
     with open(filename, 'r', encoding='utf8') as file:
@@ -71,12 +93,17 @@ def read_similar_file(filename: str) -> dict:
     return similar_categories
 
 
-# Load queries from JSON files based on their IDs and load them into a dictionary.
 def make_queries(query_ids: list, ef: EntityInfo) -> dict:
+    """
+    Extract query data from JSON files based on the query IDs and return the query data as a dictionary.
+
+    @param query_ids: Query IDs of interest (skip the rest)
+    @param ef: EntityInfo class, used to extract information about informative entities.
+    @return: Key: query ID, value: query data
+    """
     queries = {}
 
     for query_id in query_ids:
-        folder = str(int(query_id, 10) // 1000)
         filename = str(query_id) + ".json"
 
         try:
@@ -112,8 +139,13 @@ def make_queries(query_ids: list, ef: EntityInfo) -> dict:
     return queries
 
 
-# Extract document features from JSON files based on their IDs.
 def find_documents(document_ids: set) -> dict:
+    """
+    Extract document features from JSON files based on their IDs. Return the dictionary with relevant document data.
+
+    @param document_ids: IDs of documents of interest (skip the rest)
+    @return: Dictionary, key: document ID, value: dictionary of relevant document data.
+    """
     documents = {}
     for doc_id in document_ids:
         thread_id, reply_nr = doc_id.replace("EF-", "").split("r")
@@ -170,8 +202,16 @@ def find_documents(document_ids: set) -> dict:
     return documents
 
 
-# Create training data by reading the full query, extracting document features in respect to the query and reading
-def produce_training_data(selected: dict, queries: dict, documents: dict, ef: EntityInfo) -> (list, list):
+def produce_training_data(selected: list, queries: dict, documents: dict, ef: EntityInfo) -> list:
+    """
+    Create training data by reading the full query, extracting document features in respect to the query and reading
+
+    @param selected: List of selected queries
+    @param queries: Full details of the selected queries
+    @param documents: Relevant details of the selected documents.
+    @param ef: EntityInfo class, used to extract information about informative entities.
+    @return: List of individual training pairs with all details necessary for Snorkel processing.
+    """
     training_data = []
 
     entity_list = ef.get_entity_relations()
@@ -249,6 +289,8 @@ def produce_training_data(selected: dict, queries: dict, documents: dict, ef: En
 
                 document_annotation_count = document_annotation_count + str(count)
 
+            # Two 0s at the end represent a BM25 score (non-relevant queries don't have it) and BM25 relevance (0 for
+            # non-relevant)
             training_item = [query_category, query_thread, query_id, query_text, query_username, query_annotations,
                              query_annotation_count,
                              document_category, document_id, document_thread, document_text, document_is_doctor_reply,
@@ -261,7 +303,15 @@ def produce_training_data(selected: dict, queries: dict, documents: dict, ef: En
     return training_data
 
 
-def make_annotation_types(annotations: list, entity_info: EntityInfo) -> list:
+def make_annotation_types(annotations: list, ef: EntityInfo) -> list:
+    """
+    Extract information the type of annotation for a given entity code (e.g. C124894)
+
+    @param annotations: List of annotations to get information about.
+    @param ef: EntityInfo class, used to extract information about informative entities.
+    @return: Number of each entity type (uses the list of informative entity types defined in
+    relevanceRanking.connect_to_kb)
+    """
     types_counts = {}
 
     for entity in informative_entity_types:
@@ -270,7 +320,7 @@ def make_annotation_types(annotations: list, entity_info: EntityInfo) -> list:
     if annotations is not None:
         for annotation in annotations:
             try:
-                types = entity_info.get_entity_types(annotation)
+                types = ef.get_entity_types(annotation)
 
             except ValueError as ve:
                 print("Value could not be found: " + str(annotation))
@@ -287,6 +337,13 @@ def make_annotation_types(annotations: list, entity_info: EntityInfo) -> list:
 
 
 def write_out_training_data(output_path: str, data: list) -> None:
+    """
+    Write out training pairs to a tab-separated text file.
+
+    @param output_path: Path to the output file.
+    @param data: Training pairs to be written.
+    @return: None
+    """
     with open(os.path.join(output_path, output_filename), "w+", encoding="utf8") as training_file:
 
         training_file.write(
@@ -307,7 +364,16 @@ def write_out_training_data(output_path: str, data: list) -> None:
     print("Wrote training data to file: " + os.path.join(output_path, output_filename))
 
 
-def pair_up(category_map: dict, similar_map: dict, used_queries_count: dict) -> list:
+def pair_up(category_map: dict, similar_map: dict, used_queries_count: dict) -> dict:
+    """
+    Create pair between query IDs and document IDs based on similarity between forum categories.
+
+    @param category_map: List of Query IDs sorted by category
+    @param similar_map: Dictionary, where key: category, value: [similar category1, similar category2,
+    similar category3]
+    @param used_queries_count: Queries used in creating relevant pairs.
+    @return: Dictionary of paired IDs in form key: Query ID, value: [List of document IDs paired with this query]
+    """
     print('Started making pairs.')
 
     for category in category_map:
@@ -337,8 +403,6 @@ def pair_up(category_map: dict, similar_map: dict, used_queries_count: dict) -> 
                 if query not in pairs:
                     pairs[query] = [document]
                 elif document in pairs[query]:
-                    # TODO find out why there are still duplicate documents for one query
-
                     continue
                 else:
                     pairs[query].append(document)
@@ -384,9 +448,6 @@ if __name__ == '__main__':
     similar_map = remap_similar_categories(similar_map)
 
     selected_pairs = pair_up(category_files, similar_map, used_queries_counts)
-
-    with open(produced_query_counts_path, 'w+', encoding='utf8') as counts_file:
-        json.dump(selected_pairs, counts_file)
 
     full_queries = make_queries(list(selected_pairs.keys()), ef)
 

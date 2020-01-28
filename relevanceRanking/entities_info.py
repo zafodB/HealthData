@@ -64,6 +64,7 @@ class EntityInfo:
     def __load_entity_types(self) -> None:
         """
         Load list of informative and non-informative (other) entities from the specified file for use inside the class.
+
         @return: None
         """
         i_entities = set()
@@ -87,7 +88,8 @@ class EntityInfo:
 
     def update_informative_list(self, informative_entity: str) -> None:
         """
-        Update the list of informative entities with a new relevant relevant entity
+        Update the list of informative entities with a new relevant relevant entity.
+
         @param informative_entity: New addition to the list
         @return: None
         """
@@ -111,6 +113,7 @@ class EntityInfo:
     def update_entity_types(self, entity: str, types: set) -> None:
         """
         Update the list of entity types with new entries.
+
         @param entity: The entity for which the information should be updated.
         @param types: Set containing the types of the entity.
         @return: None
@@ -135,6 +138,7 @@ class EntityInfo:
         """
         Return whether the given entity is relevant (whether at least one of its types is in the list of informative
         types.
+
         @param entity: Entity code to evaluate (without brackets or pipes, in form C123546)
         @return: True if entity is informative, False otherwise
         """
@@ -178,6 +182,7 @@ class EntityInfo:
     def get_entity_relations(self) -> dict:
         """
         Load from file and return relationshipss between all entities (according to Knowledge base)
+
         @return: Dictionary with relations (form:
                 entity1: {
                             entity2: [relationship-type1, relationship-type2],
