@@ -2,8 +2,8 @@
  * Created by filip on 08/11/2019
 '''
 
-from relevanceRanking.entities_info import EntityInfo
-from relevanceRanking.connect_to_kb import get_entity_types
+from prepareTrainingData.EntityInfo.entities_info import EntityInfo
+from prepareTrainingData.EntityInfo.connect_to_kb import get_entity_types
 
 informative_entities = set()
 

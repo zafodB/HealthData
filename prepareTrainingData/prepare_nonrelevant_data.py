@@ -23,10 +23,9 @@ import json
 import platform
 import random
 import copy
-import multiprocessing
-from relevanceRanking.entities_info import EntityInfo
-from relevanceRanking.make_queries_rank import make_queries, extract_query, get_entity_code
-from relevanceRanking.connect_to_kb import informative_entity_types
+from prepareTrainingData.EntityInfo.entities_info import EntityInfo
+from prepareTrainingData.make_queries_rank import extract_query, get_entity_code
+from prepareTrainingData.EntityInfo.connect_to_kb import informative_entity_types
 
 all_types = "typ_dsyn" + "\t" + "typ_patf" + "\t" + "typ_sosy" + "\t" + "typ_dora" + "\t" + "typ_fndg" + "\t" + "typ_menp" + "\t" + "typ_chem" + "\t" + "typ_orch" + "\t" + "typ_horm" + "\t" + "typ_phsu" + "\t" + "typ_medd" + "\t" + "typ_bhvr" + "\t" + "typ_diap" + "\t" + "typ_bacs" + "\t" + "typ_enzy" + "\t" + "typ_inpo" + "\t" + "typ_elii"
 all_types_d = "d_typ_dsyn" + "\t" + "d_typ_patf" + "\t" + "d_typ_sosy" + "\t" + "d_typ_dora" + "\t" + "d_typ_fndg" + "\t" + "d_typ_menp" + "\t" + "d_typ_chem" + "\t" + "d_typ_orch" + "\t" + "d_typ_horm" + "\t" + "d_typ_phsu" + "\t" + "d_typ_medd" + "\t" + "d_typ_bhvr" + "\t" + "d_typ_diap" + "\t" + "d_typ_bacs" + "\t" + "d_typ_enzy" + "\t" + "d_typ_inpo" + "\t" + "d_typ_elii"

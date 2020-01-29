@@ -1,6 +1,13 @@
 """
  * Created by filip on 23/10/2019
- TODO write code comments
+ This script prepares pairs of relevant queries and documents for the Snorkel to evaluate.
+
+ Input:
+    * Location of BM25 score files - starting_directory
+    * Location of annotated JSON files - data_directory
+
+ Output:
+    * Relevant pairs (one row is one query-document pair with all features), tab-separated
 """
 
 import os
@@ -8,9 +15,9 @@ import json
 import platform
 import random
 import multiprocessing
-from relevanceRanking.entities_info import EntityInfo
-from relevanceRanking.make_queries_rank import make_queries, extract_query, get_entity_code
-from relevanceRanking.connect_to_kb import informative_entity_types
+from prepareTrainingData.EntityInfo.entities_info import EntityInfo
+from prepareTrainingData.make_queries_rank import extract_query, get_entity_code
+from prepareTrainingData.EntityInfo.connect_to_kb import informative_entity_types
 
 all_types = "typ_dsyn" + "\t" + "typ_patf" + "\t" + "typ_sosy" + "\t" + "typ_dora" + "\t" + "typ_fndg" + "\t" + "typ_menp" + "\t" + "typ_chem" + "\t" + "typ_orch" + "\t" + "typ_horm" + "\t" + "typ_phsu" + "\t" + "typ_medd" + "\t" + "typ_bhvr" + "\t" + "typ_diap" + "\t" + "typ_bacs" + "\t" + "typ_enzy" + "\t" + "typ_inpo" + "\t" + "typ_elii"
 all_types_d = "d_typ_dsyn" + "\t" + "d_typ_patf" + "\t" + "d_typ_sosy" + "\t" + "d_typ_dora" + "\t" + "d_typ_fndg" + "\t" + "d_typ_menp" + "\t" + "d_typ_chem" + "\t" + "d_typ_orch" + "\t" + "d_typ_horm" + "\t" + "d_typ_phsu" + "\t" + "d_typ_medd" + "\t" + "d_typ_bhvr" + "\t" + "d_typ_diap" + "\t" + "d_typ_bacs" + "\t" + "d_typ_enzy" + "\t" + "d_typ_inpo" + "\t" + "d_typ_elii"
@@ -20,7 +27,6 @@ on_server = platform.system() == "Linux"
 if on_server:
     # INPUT
     starting_directory = "/home/fadamik/build-attempt/anserini/runs.ehf.titles.1000"
-    starting_file = "run.ehf.titles.1000.0.txt"
     data_directory = "/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
 
     # OUTPUT
@@ -30,28 +36,32 @@ if on_server:
 else:
     # INPUT
     starting_directory = "m:/build-attempt/anserini/runs.ehf.titles.1000"
-    starting_file = "run.ehf.titles.1000.0.txt"
     data_directory = "n:/scratch/GW/pool0/fadamik/ehealthforum/json-annotated/"
 
     # OUTPUT
     output_directory = "d:/downloads/json/ehealthforum/trac"
     output_filename = "training_data_snorkel_test_multiproc.txt"
 
-# Input
+# INPUT SETTINGS
+# Number of documents with best BM25 scores that are considered as relevant for a single query.
 NUMBER_DOCS_PER_QUERY = 10
+# Number of scored documents for every query
 NUMBER_HITS_IN_FILE = 1000
 
-# Output
+# PROCESSING SETTINGS
+# Number of multiprocesses/how many score files to read at once.
 NUMBER_OF_RESULT_FILES = 70
+# Number of queries to read from each file
 NUMBER_QUERIES_PER_FILE = 3000
 
 
 # Read file with BM25 scores and load it as dictionary.
 def read_score_file(filename: str) -> dict:
     """
+    Open and read the specified file with BM25 scores.
 
-    @param filename:
-    @return:
+    @param filename: Name of the file to open and read
+    @return: Dictionary where keys are the query IDs and values document IDs and their respective BM25 scores.
     """
     scores = {}
 
@@ -60,9 +70,6 @@ def read_score_file(filename: str) -> dict:
 
             line_contents = line.split(" ")
             query_id = line_contents[0]
-
-            # if query_id not in query_ids:
-            #     continue
 
             document_id = line_contents[2]
             doc_rank = int(line_contents[3], base=10)
@@ -91,8 +98,9 @@ def make_queries(query_ids: list, ef: EntityInfo) -> dict:
     Load queries from JSON files based on their IDs and load them into a dictionary.
 
     @param query_ids: IDs of the
-    @param ef:
-    @return:
+    @param ef: EntityInfo class, used to extract information about informative entities.
+    @return: Queries with all details in as a dictionary, where key is the query ID and value is a dictionary with
+    query details.
     """
     queries = {}
 
@@ -264,10 +272,12 @@ def produce_training_data(scores: dict, queries: dict, documents: dict, ef: Enti
 
 def make_annotation_types(annotations: list, entity_info: EntityInfo) -> list:
     """
+    Extract information the type of annotation for a given entity code (e.g. C124894)
 
-    @param annotations:
-    @param entity_info:
-    @return:
+    @param annotations: List of annotations to get information about.
+    @param ef: EntityInfo class, used to extract information about informative entities.
+    @return: Number of each entity type (uses the list of informative entity types defined in
+    relevanceRanking.connect_to_kb)
     """
     types_counts = {}
 
@@ -295,10 +305,11 @@ def make_annotation_types(annotations: list, entity_info: EntityInfo) -> list:
 
 def write_out_training_data(output_path: str, data: list) -> None:
     """
+    Write out training pairs to a tab-separated text file.
 
-    @param output_path:
-    @param data:
-    @return:
+    @param output_path: Path to the output file.
+    @param data: Training pairs to be written.
+    @return: None
     """
     with open(os.path.join(output_path, output_filename), "w+", encoding="utf8") as training_file:
 
@@ -320,15 +331,17 @@ def write_out_training_data(output_path: str, data: list) -> None:
     print("Wrote training data to file: " + os.path.join(output_path, output_filename))
 
 
-def read_scores(thread_number: int, return_dictionary: dict):
+def read_scores(part_number: int, return_dictionary: dict) -> None:
     """
+    Read files with BM25 scores from the specified directory and update an existing dictionary with new data. This
+    is a wrapper method for read_score_file to allow for multiprocessing.
 
-    @param thread_number:
-    @param return_dictionary:
-    @return:
+    @param part_number: There are several score files. This specifies which file will be read.
+    @param return_dictionary: Dictionary to update
+    @return: None
     """
-    return_dictionary[thread_number] = read_score_file(os.path.join(starting_directory, "run.ehf.titles.1000." +
-                                                                    str(thread_number) + ".txt"))
+    return_dictionary[part_number] = read_score_file(os.path.join(starting_directory, "run.ehf.titles.1000." +
+                                                                  str(part_number) + ".txt"))
 
 
 if __name__ == '__main__':

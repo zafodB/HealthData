@@ -10,7 +10,7 @@
 import platform
 import json
 import re
-from relevanceRanking.connect_to_kb import connect_elasticsearch, get_entity_types
+from prepareTrainingData.EntityInfo.connect_to_kb import connect_elasticsearch, get_entity_types
 
 
 def get_entity_code(entity):

@@ -5,8 +5,8 @@
 import os
 import json
 import platform
-from relevanceRanking.entities_info import EntityInfo
-from relevanceRanking.make_queries_rank import make_queries, extract_query, get_entity_code
+from prepareTrainingData.EntityInfo.entities_info import EntityInfo
+from prepareTrainingData.make_queries_rank import make_queries, extract_query, get_entity_code
 
 on_server = platform.system() == "Linux"
 

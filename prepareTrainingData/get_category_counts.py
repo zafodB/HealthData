@@ -1,12 +1,13 @@
-'''
+"""
  * Created by filip on 13/12/2019
-'''
 
+ Determine which query belongs to which category and save this overview to a file. This file is used as input to
+ prepare_nonrelevant_data.py
+"""
+
+import json
 import os
 import platform
-import json
-import traceback
-import re
 
 on_server = platform.system() == "Linux"
 

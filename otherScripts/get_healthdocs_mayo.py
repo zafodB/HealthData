@@ -4,7 +4,7 @@
 
 import json
 import re
-from relevanceRanking.entities_info import EntityInfo, get_entity_code
+from prepareTrainingData.EntityInfo.entities_info import EntityInfo, get_entity_code
 
 with open("d:/downloads/json/mayoclinic.json", "r", encoding="utf8") as file:
     contents = json.load(file)

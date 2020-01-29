@@ -4,7 +4,7 @@
  Reads JSON files from the specified directory. Creates *.trac files containing of arbitrary document ID,
  and reply text. Writes 1000 documents per one .trac file.
 
- Reads file specifying used queires and creates query files for the used queries.
+ Reads file specifying used queries and creates query files for the used queries.
 
  Creates a query file consisting of topic number and the text of the first post in the thread. Skips queries without
  informative entities.
@@ -15,7 +15,7 @@ import platform
 import json
 import traceback
 import re
-from relevanceRanking.entities_info import EntityInfo, get_entity_code
+from prepareTrainingData.EntityInfo.entities_info import EntityInfo
 
 on_server = platform.system() == "Linux"
 

@@ -14,7 +14,7 @@ import platform
 import json
 import traceback
 import re
-from relevanceRanking.entities_info import EntityInfo, get_entity_code
+from prepareTrainingData.EntityInfo.entities_info import EntityInfo, get_entity_code
 
 on_server = platform.system() == "Linux"
 
